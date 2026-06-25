@@ -1,0 +1,40 @@
+import type { TaskNote, WorkspaceNote, AgentNote } from "../domain/types";
+
+export interface VaultGateway {
+  listTasks(): Promise<TaskNote[]>;
+  getTask(path: string): Promise<TaskNote | null>;
+  patchTask(path: string, patch: Partial<TaskNote>): Promise<void>;
+  getWorkspace(name: string): Promise<WorkspaceNote | null>;
+  getAgent(name: string): Promise<AgentNote | null>;
+}
+
+export interface GitBackend {
+  createWorktree(repoPath: string, branch: string, dir: string, baseBranch: string): Promise<void>;
+  diff(repoPath: string, baseBranch: string, branch: string): Promise<string>;
+  merge(repoPath: string, baseBranch: string, branch: string): Promise<{ ok: boolean; conflicts: boolean; message: string }>;
+  removeWorktree(repoPath: string, dir: string, opts: { force: boolean }): Promise<{ ok: boolean; reason?: string }>;
+  hasUncommittedOrUnmerged(repoPath: string, dir: string, baseBranch: string, branch: string): Promise<boolean>;
+}
+
+export interface MuxBackend {
+  create(session: string, cwd: string, command: string, env: Record<string, string>): Promise<void>;
+  kill(session: string): Promise<void>;
+  focus(session: string): Promise<void>;
+  isAlive(session: string): Promise<boolean>;
+}
+
+export interface LaunchArgs {
+  task: TaskNote;
+  cwd: string;
+  agent: AgentNote;
+  vaultRoot: string;
+}
+
+export interface AgentBackend {
+  launch(args: LaunchArgs): Promise<{ session: string }>;
+}
+
+export interface Notifier {
+  notice(msg: string): void;
+  confirm(msg: string): Promise<boolean>;
+}

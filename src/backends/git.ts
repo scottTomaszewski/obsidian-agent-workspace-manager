@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { existsSync, readFileSync, appendFileSync } from "node:fs";
 import type { GitBackend } from "../core/ports";
 import { run } from "./exec";
 
@@ -8,13 +9,43 @@ export class RealGitBackend implements GitBackend {
   private wtPath(repoPath: string, dir: string) { return join(repoPath, WT_ROOT, dir); }
 
   async createWorktree(repoPath: string, branch: string, dir: string, baseBranch: string): Promise<void> {
-    const res = await run("git", ["worktree", "add", "-b", branch, this.wtPath(repoPath, dir), baseBranch], { cwd: repoPath });
+    const wtDir = this.wtPath(repoPath, dir);
+
+    // Idempotent relaunch: if the worktree dir already exists, reuse it.
+    if (existsSync(wtDir)) return;
+
+    // Check whether the branch already exists (e.g. dir was manually removed).
+    const branchCheck = await run("git", ["rev-parse", "--verify", "--quiet", `refs/heads/${branch}`], { cwd: repoPath });
+    let res;
+    if (branchCheck.code === 0) {
+      // Branch exists — attach without -b
+      res = await run("git", ["worktree", "add", wtDir, branch], { cwd: repoPath });
+    } else {
+      // New branch
+      res = await run("git", ["worktree", "add", "-b", branch, wtDir, baseBranch], { cwd: repoPath });
+    }
     if (res.code !== 0) throw new Error(`git worktree add failed: ${res.stderr}`);
+
+    // Best-effort: keep .oawm paths out of the user's tracked files.
+    try {
+      const excludePath = join(repoPath, ".git", "info", "exclude");
+      const existing = existsSync(excludePath) ? readFileSync(excludePath, "utf8") : "";
+      const toAdd: string[] = [];
+      if (!existing.includes(".oawm-worktrees/")) toAdd.push(".oawm-worktrees/");
+      if (!existing.includes(".oawm/")) toAdd.push(".oawm/");
+      if (toAdd.length > 0) appendFileSync(excludePath, "\n" + toAdd.join("\n") + "\n");
+    } catch { /* best-effort: never fail worktree creation */ }
   }
 
   async diff(repoPath: string, baseBranch: string, branch: string): Promise<string> {
     const res = await run("git", ["diff", `${baseBranch}...${branch}`], { cwd: repoPath });
-    return res.stdout;
+    let output = res.stdout;
+    // Append untracked files (spec: "plus untracked").
+    const untracked = await run("git", ["ls-files", "--others", "--exclude-standard"], { cwd: repoPath });
+    if (untracked.stdout.trim()) {
+      output += "\nUntracked files:\n" + untracked.stdout.trim().split("\n").map((f) => `  ${f}`).join("\n") + "\n";
+    }
+    return output;
   }
 
   async merge(repoPath: string, baseBranch: string, branch: string) {

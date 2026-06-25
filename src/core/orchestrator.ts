@@ -73,7 +73,7 @@ export class Orchestrator {
 
   private async killAndIdle(task: TaskNote): Promise<void> {
     if (task.session) await this.deps.mux.kill(task.session);
-    await this.deps.vault.patchTask(task.path, { agentState: "Idle" });
+    await this.deps.vault.patchTask(task.path, { agentState: "Idle", session: "", branch: "", worktree: "" });
   }
 
   private async completeAndMerge(task: TaskNote): Promise<void> {

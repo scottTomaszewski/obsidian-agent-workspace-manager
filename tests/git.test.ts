@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { mkdtempSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { mkdtempSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { RealGitBackend } from "../src/backends/git";
@@ -52,6 +52,15 @@ describe("RealGitBackend", () => {
     writeFileSync(join(wt, "dirty.txt"), "wip\n");
     const res = await git.removeWorktree(repo, "x", { force: false });
     expect(res.ok).toBe(false);
+    expect(existsSync(wt)).toBe(true);
+  });
+
+  it("createWorktree is idempotent: second call with same args does not throw and worktree still exists", async () => {
+    const wt = join(repo, ".oawm-worktrees", "x");
+    await git.createWorktree(repo, "oawm/x", "x", "main");
+    expect(existsSync(wt)).toBe(true);
+    // Second call — simulates relaunch after Cancel/Failed left worktree on disk
+    await expect(git.createWorktree(repo, "oawm/x", "x", "main")).resolves.toBeUndefined();
     expect(existsSync(wt)).toBe(true);
   });
 });

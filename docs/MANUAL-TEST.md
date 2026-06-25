@@ -20,3 +20,4 @@ Install: copy `main.js`, `manifest.json`, `styles.css`, `oawm-hook.mjs` into `<v
 7. Dirty-guard: start another task, leave uncommitted work in its worktree, Complete → confirm dialog appears;
    declining leaves the worktree intact.
 8. Crash backstop: start a task, `zellij kill-session oawm-<id>` manually → within 15s badge flips to Failed.
+   NOTE: because the session runs `claude; exec bash`, the 15s Failed backstop detects whole-session death (e.g. `zellij kill-session`), not the claude process exiting on its own (the pane persists by design so you can inspect it).

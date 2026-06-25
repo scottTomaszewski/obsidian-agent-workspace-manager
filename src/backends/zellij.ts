@@ -1,6 +1,19 @@
 import type { MuxBackend } from "../core/ports";
 import { run } from "./exec";
 
+/**
+ * Parse the output of `zellij list-sessions --no-formatting` and return the
+ * names of sessions that are NOT exited.
+ * Each non-empty line's first whitespace-separated token is the session name;
+ * lines containing "EXITED" (case-insensitive) are excluded.
+ */
+export function parseAliveSessions(listOutput: string): string[] {
+  return listOutput
+    .split("\n")
+    .filter((line) => line.trim().length > 0 && !/EXITED/i.test(line))
+    .map((line) => line.trim().split(/\s+/)[0]);
+}
+
 export const zellijArgs = {
   create(session: string, _cwd: string, command: string): string[] {
     // Launch a detached session that runs `command`, then drops to a shell.
@@ -27,6 +40,6 @@ export class ZellijBackend implements MuxBackend {
   }
   async isAlive(session: string): Promise<boolean> {
     const res = await run("zellij", zellijArgs.list());
-    return res.stdout.split("\n").some((line) => line.trim().startsWith(session));
+    return parseAliveSessions(res.stdout).includes(session);
   }
 }

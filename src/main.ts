@@ -54,7 +54,11 @@ export default class OawmPlugin extends Plugin {
     }));
 
     // Ensure status dir exists before attaching watcher
-    mkdirSync(this.statusDir, { recursive: true });
+    try {
+      mkdirSync(this.statusDir, { recursive: true });
+    } catch {
+      new Notice("OAWM: could not create status dir");
+    }
 
     // Watch status markers
     this.startStatusWatcher(ingest);
@@ -73,7 +77,7 @@ export default class OawmPlugin extends Plugin {
         const id = filename.replace(/\.json$/, "");
         try { void ingest.ingest(id, readFileSync(join(this.statusDir, filename), "utf8")); } catch { /* mid-write */ }
       });
-    } catch { /* status dir not ready yet */ }
+    } catch { /* catches an fsWatch OS error; status dir was created in onload */ }
   }
 
   private async sweep() {

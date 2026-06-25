@@ -19,3 +19,13 @@ export class ItemView {
   getIcon(): string { return ""; }
   async onOpen(): Promise<void> {}
 }
+
+export class Modal {
+  contentEl: HTMLElement = typeof document !== "undefined" ? document.createElement("div") : ({} as HTMLElement);
+  titleEl: HTMLElement = typeof document !== "undefined" ? document.createElement("div") : ({} as HTMLElement);
+  constructor(_app: App) {}
+  open(): void {}
+  close(): void {}
+  onOpen(): void {}
+  onClose(): void {}
+}

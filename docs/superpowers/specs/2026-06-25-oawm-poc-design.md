@@ -86,6 +86,7 @@ env: {}
 ```yaml
 ---
 type: task
+id: DS-123                   # stable task ID; routes hooks, names branch/worktree
 workspace: Draw Steel
 repositories: [compendium]
 agent: vexa                  # ← assignment, per task
@@ -103,6 +104,7 @@ session: ""                  # zellij session name, orchestrator writes
 
 1. **Desired vs actual are separate fields** (`status` = intent, `agent_state` = reality). The loop never fights the user's edits; both are always visible. Reconciliation = make `agent_state` match `status`.
 2. **Agents are assigned per-task; environment lives on the workspace.** A task can run under a specific account without changing the workspace's git identity, host, or mux. Parallel tasks in one workspace can use different accounts.
+   - **Task `id`** is user-supplied and stable. It routes hook callbacks (`--task <id>`, `<id>.json` marker), names the branch/worktree, and keys the per-task reconciliation lock. If omitted, the orchestrator derives a slug from the note filename and writes it back to `id` on first launch.
 3. **Multi-repo tasks resolve to the first repo's worktree for the POC.** Unified multi-repo worktrees are deferred.
 
 ## Reconciliation Loop & State Machine

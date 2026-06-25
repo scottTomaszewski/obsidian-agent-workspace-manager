@@ -14,10 +14,14 @@ describe("groupByState", () => {
       t("B", "Running", "Running"),
       t("C", "Running", "NeedsReview"),
       t("D", "Running", "Waiting"),
+      t("E", "Running", ""),
+      t("F", "Running", "Failed"),
     ]);
     expect(groups.Pending.map((x) => x.id)).toEqual(["A"]);
     expect(groups.Running.map((x) => x.id)).toEqual(["B"]);
     expect(groups.NeedsReview.map((x) => x.id)).toEqual(["C"]);
     expect(groups.Waiting.map((x) => x.id)).toEqual(["D"]);
+    expect(groups.Idle.map((x) => x.id)).toEqual(["E"]);
+    expect(groups.Failed.map((x) => x.id)).toEqual(["F"]);
   });
 });

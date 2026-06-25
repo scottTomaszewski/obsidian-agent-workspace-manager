@@ -1,6 +1,6 @@
 import { Plugin, TFile, Notice, WorkspaceLeaf, normalizePath } from "obsidian";
 import { join } from "node:path";
-import { existsSync, watch as fsWatch, readFileSync } from "node:fs";
+import { mkdirSync, watch as fsWatch, readFileSync } from "node:fs";
 import { ObsidianVaultGateway } from "./obsidian/vaultGateway";
 import { RealGitBackend } from "./backends/git";
 import { ZellijBackend } from "./backends/zellij";
@@ -19,6 +19,7 @@ export default class OawmPlugin extends Plugin {
   private mux!: ZellijBackend;
   private statusDir!: string;
   private sweepTimer?: number;
+  private fsWatcher?: ReturnType<typeof fsWatch>;
 
   async onload() {
     const vaultRoot = (this.app.vault.adapter as any).getBasePath?.() ?? "";
@@ -52,6 +53,9 @@ export default class OawmPlugin extends Plugin {
       if (fm?.type === "task") void this.orchestrator.reconcileTask(file.path);
     }));
 
+    // Ensure status dir exists before attaching watcher
+    mkdirSync(this.statusDir, { recursive: true });
+
     // Watch status markers
     this.startStatusWatcher(ingest);
 
@@ -60,12 +64,11 @@ export default class OawmPlugin extends Plugin {
     this.registerInterval(this.sweepTimer);
   }
 
-  onunload() { if (this.sweepTimer) window.clearInterval(this.sweepTimer); }
+  onunload() { this.fsWatcher?.close(); }
 
   private startStatusWatcher(ingest: StatusIngest) {
     try {
-      if (!existsSync(this.statusDir)) return; // created lazily by hooks; re-checked on sweep
-      fsWatch(this.statusDir, (_e, filename) => {
+      this.fsWatcher = fsWatch(this.statusDir, (_e, filename) => {
         if (!filename || !filename.endsWith(".json")) return;
         const id = filename.replace(/\.json$/, "");
         try { void ingest.ingest(id, readFileSync(join(this.statusDir, filename), "utf8")); } catch { /* mid-write */ }
@@ -85,7 +88,7 @@ export default class OawmPlugin extends Plugin {
       case "cancel": await this.vault.patchTask(task.path, { status: "Cancelled" }); break;
       case "complete": await this.vault.patchTask(task.path, { status: "Completed" }); break;
       case "restart": await this.vault.patchTask(task.path, { agentState: "", status: "Running" }); break;
-      case "openTerminal": if (task.session) await this.mux.focus(task.session); break;
+      case "openTerminal": if (task.session) await this.mux.focus(task.session); return;
       case "viewDiff": await this.showDiff(task); return;
     }
     await this.orchestrator.reconcileTask(task.path);
@@ -107,6 +110,7 @@ export default class OawmPlugin extends Plugin {
   private async activateDashboard() {
     const existing = this.app.workspace.getLeavesOfType(DASHBOARD_VIEW_TYPE);
     const leaf = existing[0] ?? this.app.workspace.getRightLeaf(false);
+    if (!leaf) { new Notice("OAWM: could not open dashboard"); return; }
     await leaf.setViewState({ type: DASHBOARD_VIEW_TYPE, active: true });
     this.app.workspace.revealLeaf(leaf);
   }

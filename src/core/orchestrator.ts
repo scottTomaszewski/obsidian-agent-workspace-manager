@@ -37,7 +37,7 @@ export class Orchestrator {
     }
   }
 
-  private async resolveRepoPath(task: TaskNote, ws: WorkspaceNote): Promise<string> {
+  private resolveRepoPath(task: TaskNote, ws: WorkspaceNote): string {
     const repoName = task.repositories[0];
     const repo = ws.repositories.find((r) => r.name === repoName) ?? ws.repositories[0];
     return repo.path;
@@ -51,7 +51,7 @@ export class Orchestrator {
       this.deps.notifier.notice(`Task ${task.id}: missing workspace or agent`);
       return;
     }
-    const repoPath = await this.resolveRepoPath(task, ws);
+    const repoPath = this.resolveRepoPath(task, ws);
     const branch = branchName(task.id, task.title);
     const dir = worktreeDirName(task.id, task.title);
     let cwd = repoPath;
@@ -77,9 +77,15 @@ export class Orchestrator {
   }
 
   private async completeAndMerge(task: TaskNote): Promise<void> {
+    if (task.agentState === "Idle") return;
     const ws = await this.deps.vault.getWorkspace(task.workspace);
-    if (!ws || ws.isolation !== "worktree" || !task.branch) return;
-    const repoPath = await this.resolveRepoPath(task, ws);
+    if (!ws || ws.isolation !== "worktree" || !task.branch) {
+      // repo-direct or missing branch: finalize without merging
+      if (task.session) await this.deps.mux.kill(task.session);
+      await this.deps.vault.patchTask(task.path, { agentState: "Idle", session: "", branch: "" });
+      return;
+    }
+    const repoPath = this.resolveRepoPath(task, ws);
     const dir = worktreeDirName(task.id, task.title);
     const res = await this.deps.git.merge(repoPath, ws.baseBranch, task.branch);
     if (!res.ok || res.conflicts) {
@@ -90,11 +96,17 @@ export class Orchestrator {
     const dirty = await this.deps.git.hasUncommittedOrUnmerged(repoPath, dir, ws.baseBranch, task.branch);
     if (dirty) {
       const ok = await this.deps.notifier.confirm(`Task ${task.id}: worktree has unsaved work. Discard and remove?`);
-      if (!ok) return;
+      if (!ok) {
+        // Merge already happened; finalize but keep the worktree
+        if (task.session) await this.deps.mux.kill(task.session);
+        await this.deps.vault.patchTask(task.path, { agentState: "Idle", session: "", branch: "" });
+        this.deps.notifier.notice(`Task ${task.id}: merged into ${ws.baseBranch}, worktree kept`);
+        return;
+      }
     }
     if (task.session) await this.deps.mux.kill(task.session);
     await this.deps.git.removeWorktree(repoPath, dir, { force: dirty });
-    await this.deps.vault.patchTask(task.path, { agentState: "Idle", session: "", worktree: "" });
+    await this.deps.vault.patchTask(task.path, { agentState: "Idle", session: "", worktree: "", branch: "" });
     this.deps.notifier.notice(`Task ${task.id}: merged into ${ws.baseBranch}`);
   }
 }

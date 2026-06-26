@@ -59,7 +59,8 @@ export class Orchestrator {
       await this.deps.git.createWorktree(repoPath, branch, dir, ws.baseBranch);
       cwd = `${repoPath}/.oawm-worktrees/${dir}`;
     }
-    const { session } = await this.deps.agent.launch({ task, cwd, agent, vaultRoot: this.deps.vaultRoot });
+    const prompt = await this.deps.vault.getTaskBody(task.path);
+    const { session } = await this.deps.agent.launch({ task, cwd, agent, vaultRoot: this.deps.vaultRoot, prompt });
     await this.deps.vault.patchTask(task.path, {
       agentState: "Running", branch, worktree: cwd, session,
     });

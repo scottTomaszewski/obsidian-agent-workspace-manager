@@ -50,6 +50,17 @@ const TASK_PATCH_KEYS: Record<keyof TaskNote, string> = {
   branch: "branch", session: "session",
 };
 
+/**
+ * Extract the human-authored task body to seed the agent with: drop the YAML
+ * frontmatter and any `oawm-task` action-bar code blocks, then trim.
+ */
+export function stripTaskBody(raw: string): string {
+  return raw
+    .replace(/^﻿?---\r?\n[\s\S]*?\r?\n---\r?\n?/, "") // leading frontmatter
+    .replace(/```oawm-task[\s\S]*?```/g, "")               // action-bar blocks
+    .trim();
+}
+
 export class ObsidianVaultGateway implements VaultGateway {
   constructor(private app: App) {}
 
@@ -70,6 +81,12 @@ export class ObsidianVaultGateway implements VaultGateway {
     if (!(f instanceof TFile)) return null;
     const fm = this.app.metadataCache.getFileCache(f)?.frontmatter ?? {};
     return frontmatterToTask(f.path, f.basename, fm);
+  }
+
+  async getTaskBody(path: string): Promise<string> {
+    const f = this.app.vault.getAbstractFileByPath(path);
+    if (!(f instanceof TFile)) return "";
+    return stripTaskBody(await this.app.vault.cachedRead(f));
   }
 
   async patchTask(path: string, patch: Partial<TaskNote>): Promise<void> {

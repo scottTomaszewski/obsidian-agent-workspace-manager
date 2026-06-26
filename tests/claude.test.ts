@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { homedir } from "node:os";
-import { buildHookSettings, ClaudeBackend, expandTilde } from "../src/backends/claude";
+import { buildHookSettings, ClaudeBackend, expandTilde, buildAgentCommand } from "../src/backends/claude";
 import { FakeMux } from "./fakes";
 import type { AgentNote, TaskNote } from "../src/domain/types";
 
@@ -34,7 +34,7 @@ describe("ClaudeBackend.launch", () => {
     const backend = new ClaudeBackend({ mux, hookHelperPath: "/plugin/oawm-hook.mjs", statusDir: "/vault/.oawm/status" });
     const task = { path: "T.md", id: "DS-1", title: "T" } as TaskNote;
     const agent: AgentNote = { name: "vexa", provider: "claude", account: { configDir: "/cfg" }, command: "claude", env: {} };
-    const { session } = await backend.launch({ task, cwd, agent, vaultRoot: "/vault" });
+    const { session } = await backend.launch({ task, cwd, agent, vaultRoot: "/vault", prompt: "" });
     expect(session).toBe("oawm-DS-1");
     expect(await mux.isAlive("oawm-DS-1")).toBe(true);
     expect(existsSync(join(cwd, ".claude", "settings.local.json"))).toBe(true);
@@ -52,10 +52,31 @@ describe("ClaudeBackend.launch", () => {
       account: { configDir: "~/.claude_personal" },
       command: "claude", env: { CLAUDE_CODE_USE_FOUNDRY: "0" },
     };
-    await backend.launch({ task, cwd, agent, vaultRoot: "/v" });
+    await backend.launch({ task, cwd, agent, vaultRoot: "/v", prompt: "" });
     const call = mux.creates.find((c) => c.session === "oawm-DS-2")!;
     expect(call.command).toBe("claude");
     expect(call.env.CLAUDE_CODE_USE_FOUNDRY).toBe("0");
     expect(call.env.CLAUDE_CONFIG_DIR).toBe(join(homedir(), ".claude_personal"));
+  });
+
+  it("seeds the agent with the task goal via a prompt file when a prompt is given", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "oawm-cc-"));
+    const mux = new FakeMux();
+    const backend = new ClaudeBackend({ mux, hookHelperPath: "/p/oawm-hook.mjs", statusDir: "/v/.oawm/status" });
+    const task = { path: "T.md", id: "DS-3", title: "T" } as TaskNote;
+    const agent: AgentNote = { name: "vexa", provider: "claude", account: { configDir: "/cfg" }, command: "claude", env: {} };
+    await backend.launch({ task, cwd, agent, vaultRoot: "/v", prompt: "Add a login button" });
+    const call = mux.creates.find((c) => c.session === "oawm-DS-3")!;
+    // command is `claude "$(cat '<promptfile>')"`; the goal lives in the file, not the argv
+    expect(call.command).toMatch(/^claude "\$\(cat '.*prompt\.md'\)"$/);
+    const file = call.command.match(/cat '([^']+)'/)![1];
+    expect(readFileSync(file, "utf8")).toBe("Add a login button");
+  });
+});
+
+describe("buildAgentCommand", () => {
+  it("returns the bare command when there is no prompt", () => {
+    expect(buildAgentCommand("claude", "")).toBe("claude");
+    expect(buildAgentCommand("claude", "   ")).toBe("claude");
   });
 });

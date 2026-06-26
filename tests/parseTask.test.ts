@@ -1,5 +1,30 @@
 import { describe, it, expect } from "vitest";
-import { frontmatterToTask, frontmatterToWorkspace, frontmatterToAgent } from "../src/obsidian/vaultGateway";
+import { frontmatterToTask, frontmatterToWorkspace, frontmatterToAgent, stripTaskBody } from "../src/obsidian/vaultGateway";
+
+describe("stripTaskBody", () => {
+  it("drops frontmatter and oawm-task blocks, returning the trimmed goal", () => {
+    const raw = [
+      "---",
+      "type: task",
+      "status: Running",
+      "---",
+      "",
+      "```oawm-task",
+      "```",
+      "",
+      "Add a login button to the header.",
+      "",
+      "## Acceptance",
+      "- works",
+      "",
+    ].join("\n");
+    expect(stripTaskBody(raw)).toBe("Add a login button to the header.\n\n## Acceptance\n- works");
+  });
+
+  it("returns the whole content when there is no frontmatter", () => {
+    expect(stripTaskBody("just a goal")).toBe("just a goal");
+  });
+});
 
 describe("frontmatter mappers", () => {
   it("maps a task with defaults for missing system fields", () => {

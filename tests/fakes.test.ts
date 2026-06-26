@@ -22,7 +22,7 @@ describe("fakes", () => {
     const res = await a.launch({
       task: { path: "T.md", id: "T-1", title: "T" } as any,
       cwd: "/wt", agent: { name: "vexa", provider: "claude", account: { configDir: "/c" }, command: "claude", env: {} },
-      vaultRoot: "/v",
+      vaultRoot: "/v", prompt: "",
     });
     expect(res.session).toContain("T-1");
     expect(a.launches).toHaveLength(1);

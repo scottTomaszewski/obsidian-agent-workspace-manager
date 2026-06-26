@@ -8,6 +8,7 @@ const baseTask: TaskNote = {
 
 export class FakeVault implements VaultGateway {
   tasks = new Map<string, TaskNote>();
+  bodies = new Map<string, string>();
   workspaces = new Map<string, WorkspaceNote>();
   agents = new Map<string, AgentNote>();
   seedTask(t: Partial<TaskNote> & { path: string }) {
@@ -15,6 +16,7 @@ export class FakeVault implements VaultGateway {
   }
   async listTasks() { return [...this.tasks.values()]; }
   async getTask(p: string) { return this.tasks.get(p) ?? null; }
+  async getTaskBody(p: string) { return this.bodies.get(p) ?? ""; }
   async patchTask(p: string, patch: Partial<TaskNote>) {
     const cur = this.tasks.get(p);
     if (cur) this.tasks.set(p, { ...cur, ...patch });

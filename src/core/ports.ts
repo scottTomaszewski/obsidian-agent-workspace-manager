@@ -3,6 +3,7 @@ import type { TaskNote, WorkspaceNote, AgentNote } from "../domain/types";
 export interface VaultGateway {
   listTasks(): Promise<TaskNote[]>;
   getTask(path: string): Promise<TaskNote | null>;
+  getTaskBody(path: string): Promise<string>;
   patchTask(path: string, patch: Partial<TaskNote>): Promise<void>;
   getWorkspace(name: string): Promise<WorkspaceNote | null>;
   getAgent(name: string): Promise<AgentNote | null>;
@@ -28,6 +29,7 @@ export interface LaunchArgs {
   cwd: string;
   agent: AgentNote;
   vaultRoot: string;
+  prompt: string; // initial prompt to seed the agent with (task goal); "" for none
 }
 
 export interface AgentBackend {

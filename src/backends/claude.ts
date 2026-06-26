@@ -1,6 +1,6 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, mkdtempSync } from "node:fs";
 import { join } from "node:path";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import type { AgentBackend, LaunchArgs, MuxBackend } from "../core/ports";
 
 /** Expand a leading `~` / `~/` to the user's home directory. */
@@ -8,6 +8,25 @@ export function expandTilde(p: string): string {
   if (p === "~") return homedir();
   if (p.startsWith("~/")) return join(homedir(), p.slice(2));
   return p;
+}
+
+/** Single-quote a string for safe embedding in a bash command. */
+function shquote(s: string): string {
+  return `'${s.replace(/'/g, `'\\''`)}'`;
+}
+
+/**
+ * Build the shell command that launches the agent, seeding it with the task
+ * goal when present. The prompt is passed via `"$(cat <file>)"` so arbitrary
+ * goal text (quotes, newlines) survives the shell/KDL quoting layers intact.
+ * Returns the command and the prompt file written (if any).
+ */
+export function buildAgentCommand(baseCommand: string, prompt: string): string {
+  const cmd = baseCommand || "claude";
+  if (!prompt.trim()) return cmd;
+  const promptFile = join(mkdtempSync(join(tmpdir(), "oawm-prompt-")), "prompt.md");
+  writeFileSync(promptFile, prompt);
+  return `${cmd} "$(cat ${shquote(promptFile)})"`;
 }
 
 export function buildHookSettings(taskId: string, hookHelperPath: string, statusDir: string) {
@@ -36,7 +55,7 @@ export class ClaudeBackend implements AgentBackend {
     if (args.agent.account.configDir) {
       env.CLAUDE_CONFIG_DIR = expandTilde(args.agent.account.configDir);
     }
-    const command = args.agent.command || "claude";
+    const command = buildAgentCommand(args.agent.command, args.prompt);
     await this.deps.mux.create(session, args.cwd, command, env);
     return { session };
   }

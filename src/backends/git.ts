@@ -75,4 +75,28 @@ export class RealGitBackend implements GitBackend {
     if (res.code !== 0) return { ok: false, reason: res.stderr };
     return { ok: true };
   }
+
+  async mergeBaseIntoBranch(): Promise<{ ok: boolean; conflicts: boolean; inProgress: boolean; message: string }> {
+    throw new Error("Not implemented");
+  }
+
+  async worktreeDirty(): Promise<boolean> {
+    throw new Error("Not implemented");
+  }
+
+  async fastForwardBase(): Promise<{ ok: boolean; reason?: string }> {
+    throw new Error("Not implemented");
+  }
+
+  async pushBranch(): Promise<{ ok: boolean; message: string }> {
+    throw new Error("Not implemented");
+  }
+
+  async pushBase(): Promise<{ ok: boolean; message: string }> {
+    throw new Error("Not implemented");
+  }
+
+  async getRemoteUrl(): Promise<string> {
+    throw new Error("Not implemented");
+  }
 }

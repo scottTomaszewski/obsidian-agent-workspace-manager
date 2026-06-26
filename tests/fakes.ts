@@ -28,7 +28,19 @@ export class FakeVault implements VaultGateway {
 export class FakeGit implements GitBackend {
   worktrees = new Set<string>();
   merged: string[] = [];
+  removeCalls: { dir: string; force: boolean }[] = [];
+  integratedBase: string[] = [];
+  fastForwarded: { base: string; branch: string }[] = [];
+  pushedBranches: { branch: string; mrTarget?: string }[] = [];
+  pushedBases: string[] = [];
   dirty = false;
+  conflicts = false;
+  inProgress = false;
+  ffOk = true;
+  pushBranchOk = true;
+  pushBaseOk = true;
+  remoteUrl = "git@github.com:acme/widget.git";
+
   async createWorktree(_r: string, _b: string, dir: string) { this.worktrees.add(dir); }
   async diff() { return "diff --git a b"; }
   async merge(_r: string, _base: string, branch: string) {
@@ -36,11 +48,30 @@ export class FakeGit implements GitBackend {
     return { ok: true, conflicts: false, message: "merged" };
   }
   async removeWorktree(_r: string, dir: string, opts: { force: boolean }) {
+    this.removeCalls.push({ dir, force: opts.force });
     if (this.dirty && !opts.force) return { ok: false, reason: "dirty" };
     this.worktrees.delete(dir);
     return { ok: true };
   }
   async hasUncommittedOrUnmerged() { return this.dirty; }
+  async mergeBaseIntoBranch(_wt: string, base: string) {
+    this.integratedBase.push(base);
+    return { ok: !this.conflicts && !this.inProgress, conflicts: this.conflicts, inProgress: this.inProgress, message: "" };
+  }
+  async worktreeDirty() { return this.dirty; }
+  async fastForwardBase(_r: string, base: string, branch: string) {
+    this.fastForwarded.push({ base, branch });
+    return this.ffOk ? { ok: true } : { ok: false, reason: "blocked" };
+  }
+  async pushBranch(_r: string, branch: string, opts: { mrTarget?: string } = {}) {
+    this.pushedBranches.push({ branch, mrTarget: opts.mrTarget });
+    return { ok: this.pushBranchOk, message: "" };
+  }
+  async pushBase(_r: string, base: string) {
+    this.pushedBases.push(base);
+    return { ok: this.pushBaseOk, message: "" };
+  }
+  async getRemoteUrl(_r: string) { return this.remoteUrl; }
 }
 
 export class FakeMux implements MuxBackend {

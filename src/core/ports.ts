@@ -15,6 +15,12 @@ export interface GitBackend {
   merge(repoPath: string, baseBranch: string, branch: string): Promise<{ ok: boolean; conflicts: boolean; message: string }>;
   removeWorktree(repoPath: string, dir: string, opts: { force: boolean }): Promise<{ ok: boolean; reason?: string }>;
   hasUncommittedOrUnmerged(repoPath: string, dir: string, baseBranch: string, branch: string): Promise<boolean>;
+  mergeBaseIntoBranch(worktreePath: string, base: string): Promise<{ ok: boolean; conflicts: boolean; inProgress: boolean; message: string }>;
+  worktreeDirty(worktreePath: string): Promise<boolean>;
+  fastForwardBase(repoPath: string, base: string, branch: string): Promise<{ ok: boolean; reason?: string }>;
+  pushBranch(repoPath: string, branch: string, opts?: { mrTarget?: string }): Promise<{ ok: boolean; message: string }>;
+  pushBase(repoPath: string, base: string): Promise<{ ok: boolean; message: string }>;
+  getRemoteUrl(repoPath: string): Promise<string>;
 }
 
 export interface MuxBackend {

@@ -27,4 +27,18 @@ describe("fakes", () => {
     expect(res.session).toContain("T-1");
     expect(a.launches).toHaveLength(1);
   });
+  it("git records completion primitive calls", async () => {
+    const { FakeGit } = await import("./fakes");
+    const g = new FakeGit();
+    g.remoteUrl = "git@github.com:o/r.git";
+    expect(await g.getRemoteUrl("/repo")).toBe("git@github.com:o/r.git");
+    await g.mergeBaseIntoBranch("/wt", "main");
+    expect(g.integratedBase).toEqual(["main"]);
+    await g.fastForwardBase("/repo", "main", "oawm/t-1");
+    expect(g.fastForwarded).toEqual([{ base: "main", branch: "oawm/t-1" }]);
+    await g.pushBranch("/repo", "oawm/t-1", { mrTarget: "main" });
+    expect(g.pushedBranches).toEqual([{ branch: "oawm/t-1", mrTarget: "main" }]);
+    await g.pushBase("/repo", "main");
+    expect(g.pushedBases).toEqual(["main"]);
+  });
 });

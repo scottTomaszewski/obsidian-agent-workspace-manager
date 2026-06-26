@@ -18,9 +18,10 @@ describe("buildLaunchScript", () => {
     expect(script).toContain("cd '/wt path'");
     expect(script).toContain("export CLAUDE_CONFIG_DIR='/cfg'");
   });
-  it("starts a new zellij session with the layout, using the configured binary", () => {
-    expect(script).toContain("'/opt/zellij' -s 'oawm-DS-1' -l '/tmp/l.kdl'");
+  it("starts a new named session with the layout via -n, using the configured binary", () => {
+    expect(script).toContain("'/opt/zellij' -s 'oawm-DS-1' -n '/tmp/l.kdl'");
     expect(script).not.toContain("-- bash"); // the invalid trailing-command form is gone
+    expect(script).not.toContain(" -l "); // -l with -s adds a tab to an existing session, not what we want
   });
   it("keeps the window open after the session ends (error stays visible)", () => {
     expect(script).toContain("ec=$?");

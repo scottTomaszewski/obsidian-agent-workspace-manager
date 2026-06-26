@@ -53,7 +53,9 @@ export function buildLayout(command: string): string {
  * Build the bash launcher script run inside the terminal window. It exports the
  * agent env and cd's to the worktree (reliable even when the emulator routes
  * through a server that ignores per-invocation cwd/env; the new session and its
- * panes inherit this cwd/env), starts a new zellij session with the layout, and
+ * panes inherit this cwd/env), starts a new named zellij session with the layout
+ * (`-s NAME -n LAYOUT` — `-n/--new-session-with-layout` always creates a new
+ * session, whereas `-l` with `-s` tries to add a tab to an existing one), and
  * ALWAYS drops to an interactive shell afterward — so if zellij fails the window
  * stays open with the error visible instead of vanishing.
  */
@@ -65,7 +67,7 @@ export function buildLaunchScript(
     "#!/usr/bin/env bash",
     `cd ${shquote(cwd)} || true`,
     ...exports,
-    `${shquote(bin)} -s ${shquote(session)} -l ${shquote(layoutPath)}`,
+    `${shquote(bin)} -s ${shquote(session)} -n ${shquote(layoutPath)}`,
     "ec=$?",
     "echo",
     `echo "[oawm] zellij session ended (exit $ec). Window kept open so any error above is readable; press Ctrl-D to close."`,

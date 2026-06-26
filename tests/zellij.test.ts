@@ -1,16 +1,24 @@
 import { describe, it, expect } from "vitest";
-import { zellijArgs, parseAliveSessions } from "../src/backends/zellij";
+import { zellijArgs, parseAliveSessions, buildLaunchScript } from "../src/backends/zellij";
 
-describe("zellijArgs", () => {
-  it("creates a session whose script cd's to the cwd, exports env, and runs the command", () => {
-    const args = zellijArgs.create("oawm-DS-1", "/wt path", "claude", { CLAUDE_CONFIG_DIR: "/cfg" });
-    expect(args.slice(0, 5)).toEqual(["-s", "oawm-DS-1", "--", "bash", "-lc"]);
-    const script = args[5];
+describe("buildLaunchScript", () => {
+  const script = buildLaunchScript("/opt/zellij", "oawm-DS-1", "/wt path", "claude", { CLAUDE_CONFIG_DIR: "/cfg" });
+
+  it("cd's to the worktree and exports the agent env", () => {
     expect(script).toContain("cd '/wt path'");
     expect(script).toContain("export CLAUDE_CONFIG_DIR='/cfg'");
-    expect(script).toContain("claude");
-    expect(script).toContain("exec bash");
   });
+  it("launches the agent in a zellij session using the configured binary path", () => {
+    expect(script).toContain("'/opt/zellij' -s 'oawm-DS-1' -- bash -lc 'claude; exec bash'");
+  });
+  it("keeps the window open after the session ends (error stays visible)", () => {
+    expect(script).toContain("ec=$?");
+    expect(script.trimEnd().endsWith("exec bash")).toBe(true);
+    expect(script).toContain("Window kept open");
+  });
+});
+
+describe("zellijArgs", () => {
   it("builds attach, kill and list commands", () => {
     expect(zellijArgs.attach("oawm-DS-1")).toEqual(["attach", "oawm-DS-1"]);
     expect(zellijArgs.kill("oawm-DS-1")).toEqual(["kill-session", "oawm-DS-1"]);

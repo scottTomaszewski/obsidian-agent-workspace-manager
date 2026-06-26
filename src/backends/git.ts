@@ -5,6 +5,15 @@ import { run } from "./exec";
 
 const WT_ROOT = ".oawm-worktrees";
 
+export function findWorktreeForBranch(porcelain: string, branch: string): string | null {
+  for (const block of porcelain.split(/\n\s*\n/)) {
+    const path = block.match(/^worktree (.+)$/m)?.[1];
+    const br = block.match(/^branch refs\/heads\/(.+)$/m)?.[1];
+    if (path && br === branch) return path;
+  }
+  return null;
+}
+
 export class RealGitBackend implements GitBackend {
   private wtPath(repoPath: string, dir: string) { return join(repoPath, WT_ROOT, dir); }
 
@@ -76,27 +85,48 @@ export class RealGitBackend implements GitBackend {
     return { ok: true };
   }
 
-  async mergeBaseIntoBranch(): Promise<{ ok: boolean; conflicts: boolean; inProgress: boolean; message: string }> {
-    throw new Error("Not implemented");
+  async mergeBaseIntoBranch(worktreePath: string, base: string): Promise<{ ok: boolean; conflicts: boolean; inProgress: boolean; message: string }> {
+    const inProgress = (await run("git", ["rev-parse", "--verify", "--quiet", "MERGE_HEAD"], { cwd: worktreePath })).code === 0;
+    if (inProgress) return { ok: false, conflicts: true, inProgress: true, message: "a merge is already in progress" };
+    const res = await run("git", ["merge", "--no-ff", base], { cwd: worktreePath });
+    const conflicts = /CONFLICT/i.test(res.stdout + res.stderr);
+    if (res.code !== 0) return { ok: false, conflicts, inProgress: false, message: res.stdout + res.stderr };
+    return { ok: true, conflicts: false, inProgress: false, message: res.stdout };
   }
 
-  async worktreeDirty(): Promise<boolean> {
-    throw new Error("Not implemented");
+  async worktreeDirty(worktreePath: string): Promise<boolean> {
+    const res = await run("git", ["status", "--porcelain"], { cwd: worktreePath });
+    return res.stdout.trim().length > 0;
   }
 
-  async fastForwardBase(): Promise<{ ok: boolean; reason?: string }> {
-    throw new Error("Not implemented");
+  async fastForwardBase(repoPath: string, base: string, branch: string): Promise<{ ok: boolean; reason?: string }> {
+    const list = await run("git", ["worktree", "list", "--porcelain"], { cwd: repoPath });
+    const baseWt = findWorktreeForBranch(list.stdout, base);
+    if (baseWt) {
+      const res = await run("git", ["merge", "--ff-only", branch], { cwd: baseWt });
+      if (res.code !== 0) return { ok: false, reason: (res.stderr || res.stdout).trim() };
+      return { ok: true };
+    }
+    const res = await run("git", ["branch", "-f", base, branch], { cwd: repoPath });
+    if (res.code !== 0) return { ok: false, reason: res.stderr.trim() };
+    return { ok: true };
   }
 
-  async pushBranch(): Promise<{ ok: boolean; message: string }> {
-    throw new Error("Not implemented");
+  async pushBranch(repoPath: string, branch: string, opts: { mrTarget?: string } = {}): Promise<{ ok: boolean; message: string }> {
+    const args = ["push", "-u"];
+    if (opts.mrTarget) args.push("-o", "merge_request.create", "-o", `merge_request.target=${opts.mrTarget}`);
+    args.push("origin", branch);
+    const res = await run("git", args, { cwd: repoPath });
+    return { ok: res.code === 0, message: (res.stdout + res.stderr).trim() };
   }
 
-  async pushBase(): Promise<{ ok: boolean; message: string }> {
-    throw new Error("Not implemented");
+  async pushBase(repoPath: string, base: string): Promise<{ ok: boolean; message: string }> {
+    const res = await run("git", ["push", "origin", base], { cwd: repoPath });
+    return { ok: res.code === 0, message: (res.stdout + res.stderr).trim() };
   }
 
-  async getRemoteUrl(): Promise<string> {
-    throw new Error("Not implemented");
+  async getRemoteUrl(repoPath: string): Promise<string> {
+    const res = await run("git", ["remote", "get-url", "origin"], { cwd: repoPath });
+    return res.stdout.trim();
   }
 }

@@ -20,9 +20,11 @@ function make() {
 }
 
 function seedActive(vault: FakeVault) {
+  // Seed agentState "Running" (not "NeedsReview") so a transition TO NeedsReview
+  // is actually observable in the assertions below.
   vault.seedTask({
     path: "T.md", id: "DS-1", title: "Add Thing", workspace: "W", repositories: ["repo"],
-    agent: "vexa", status: "Running", agentState: "NeedsReview",
+    agent: "vexa", status: "Running", agentState: "Running",
     branch: "oawm/ds-1-add-thing", worktree: "/code/repo/.oawm-worktrees/ds-1-add-thing", session: "oawm-DS-1",
   });
 }
@@ -69,7 +71,39 @@ describe("CompletionCoordinator.merge", () => {
     git.inProgress = true;
     await c.merge((await vault.getTask("T.md"))!, { push: false });
     expect(git.removeCalls).toEqual([]);
+    expect((await vault.getTask("T.md"))?.agentState).toBe("NeedsReview");
     expect(notifier.notices.join(" ")).toMatch(/commit the in-progress merge/i);
+  });
+
+  it("conflict via reconcile path (status already Completed): flips status back to Running so retry is possible", async () => {
+    const { vault, git, c } = make();
+    // Simulate the orchestrator reconcile entry: status Completed, still NeedsReview.
+    vault.seedTask({
+      path: "T.md", id: "DS-1", title: "Add Thing", workspace: "W", repositories: ["repo"],
+      agent: "vexa", status: "Completed", agentState: "NeedsReview",
+      branch: "oawm/ds-1-add-thing", worktree: "/code/repo/.oawm-worktrees/ds-1-add-thing", session: "oawm-DS-1",
+    });
+    git.conflicts = true;
+    await c.merge((await vault.getTask("T.md"))!, { push: false });
+    const t = await vault.getTask("T.md");
+    expect(t?.status).toBe("Running"); // so availableActions surfaces the retry buttons
+    expect(t?.agentState).toBe("NeedsReview");
+    expect(git.removeCalls).toEqual([]);
+  });
+
+  it("repo-direct: finalizes without merging (Completed, Idle, session killed)", async () => {
+    const { vault, git, mux, c } = make();
+    vault.workspaces.set("W", { ...ws, isolation: "repo-direct" });
+    vault.seedTask({
+      path: "T.md", id: "DS-1", title: "Add Thing", workspace: "W", repositories: ["repo"],
+      agent: "vexa", status: "Running", agentState: "Running", branch: "", worktree: "", session: "oawm-DS-1",
+    });
+    await c.merge((await vault.getTask("T.md"))!, { push: false });
+    expect(git.integratedBase).toEqual([]);
+    expect(mux.alive.has("oawm-DS-1")).toBe(false);
+    const t = await vault.getTask("T.md");
+    expect(t?.status).toBe("Completed");
+    expect(t?.agentState).toBe("Idle");
   });
 
   it("blocked fast-forward: parks at NeedsReview, no teardown", async () => {
@@ -117,6 +151,16 @@ describe("CompletionCoordinator.pushBranch", () => {
     expect(git.pushedBranches).toEqual([{ branch: "oawm/ds-1-add-thing", mrTarget: undefined }]);
     expect((await vault.getTask("T.md"))?.status).toBe("Running");
   });
+
+  it("dirty + decline: aborts the push, never discards", async () => {
+    const { vault, git, notifier, c } = make();
+    seedActive(vault);
+    git.dirty = true;
+    notifier.confirmAnswer = false;
+    await c.pushBranch((await vault.getTask("T.md"))!);
+    expect(git.pushedBranches).toEqual([]);
+    expect(git.removeCalls).toEqual([]);
+  });
 });
 
 describe("CompletionCoordinator.openPr", () => {
@@ -135,6 +179,17 @@ describe("CompletionCoordinator.openPr", () => {
     seedActive(vault);
     const res = await c.openPr((await vault.getTask("T.md"))!);
     expect(git.pushedBranches).toEqual([{ branch: "oawm/ds-1-add-thing", mrTarget: "main" }]);
+    expect(res.url).toBeUndefined();
+  });
+
+  it("dirty + decline: aborts, no push and no URL", async () => {
+    const { vault, git, notifier, c } = make();
+    git.remoteUrl = "git@github.com:acme/widget.git";
+    seedActive(vault);
+    git.dirty = true;
+    notifier.confirmAnswer = false;
+    const res = await c.openPr((await vault.getTask("T.md"))!);
+    expect(git.pushedBranches).toEqual([]);
     expect(res.url).toBeUndefined();
   });
 });

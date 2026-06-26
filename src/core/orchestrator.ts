@@ -1,7 +1,7 @@
 import { decide } from "../domain/reconcile";
-import { branchName, worktreeDirName } from "../domain/types";
+import { branchName, worktreeDirName, resolveRepoPath } from "../domain/types";
 import type { VaultGateway, GitBackend, MuxBackend, AgentBackend, Notifier } from "./ports";
-import type { TaskNote, WorkspaceNote } from "../domain/types";
+import type { TaskNote } from "../domain/types";
 import type { CompletionCoordinator } from "./completion";
 
 export interface OrchestratorDeps {
@@ -39,12 +39,6 @@ export class Orchestrator {
     }
   }
 
-  private resolveRepoPath(task: TaskNote, ws: WorkspaceNote): string {
-    const repoName = task.repositories[0];
-    const repo = ws.repositories.find((r) => r.name === repoName) ?? ws.repositories[0];
-    return repo.path;
-  }
-
   private async launch(task: TaskNote): Promise<void> {
     const ws = await this.deps.vault.getWorkspace(task.workspace);
     const agent = await this.deps.vault.getAgent(task.agent);
@@ -53,7 +47,7 @@ export class Orchestrator {
       this.deps.notifier.notice(`Task ${task.id}: missing workspace or agent`);
       return;
     }
-    const repoPath = this.resolveRepoPath(task, ws);
+    const repoPath = resolveRepoPath(task, ws);
     const branch = branchName(task.id, task.title);
     const dir = worktreeDirName(task.id, task.title);
     let cwd = repoPath;

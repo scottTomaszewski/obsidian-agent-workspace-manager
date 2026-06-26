@@ -49,3 +49,8 @@ export function worktreeDirName(id: string, title: string): string {
 export function branchName(id: string, title: string): string {
   return `oawm/${worktreeDirName(id, title)}`;
 }
+
+export function resolveRepoPath(task: TaskNote, ws: WorkspaceNote): string {
+  const repo = ws.repositories.find((r) => r.name === task.repositories[0]) ?? ws.repositories[0];
+  return repo.path;
+}

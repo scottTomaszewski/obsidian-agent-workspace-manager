@@ -1,5 +1,5 @@
-import { worktreeDirName } from "../domain/types";
-import type { TaskNote, WorkspaceNote } from "../domain/types";
+import { worktreeDirName, resolveRepoPath } from "../domain/types";
+import type { TaskNote } from "../domain/types";
 import type { VaultGateway, GitBackend, MuxBackend, Notifier } from "./ports";
 import { parseRemote, compareUrl } from "./remote";
 
@@ -8,11 +8,6 @@ export interface CompletionDeps {
   git: GitBackend;
   mux: MuxBackend;
   notifier: Notifier;
-}
-
-function resolveRepoPath(task: TaskNote, ws: WorkspaceNote): string {
-  const repo = ws.repositories.find((r) => r.name === task.repositories[0]) ?? ws.repositories[0];
-  return repo.path;
 }
 
 const PUSH_DIRTY_WARNING = "worktree has uncommitted changes — only committed work will be pushed; uncommitted changes stay in the worktree. Continue?";
@@ -47,7 +42,9 @@ export class CompletionCoordinator {
     // Integrate base into the task branch (conflicts surface in the worktree).
     const integ = await this.deps.git.mergeBaseIntoBranch(task.worktree, ws.baseBranch);
     if (!integ.ok) {
-      await this.deps.vault.patchTask(task.path, { agentState: "NeedsReview" });
+      // status -> Running keeps the action bar's retry buttons available, even when
+      // this path is reached via the orchestrator reconcile (status already Completed).
+      await this.deps.vault.patchTask(task.path, { status: "Running", agentState: "NeedsReview" });
       this.deps.notifier.notice(
         integ.inProgress
           ? `Task ${task.id}: finish resolving and commit the in-progress merge in the task terminal, then retry.`
@@ -59,7 +56,7 @@ export class CompletionCoordinator {
     // Advance base (guaranteed fast-forward).
     const ff = await this.deps.git.fastForwardBase(repoPath, ws.baseBranch, task.branch);
     if (!ff.ok) {
-      await this.deps.vault.patchTask(task.path, { agentState: "NeedsReview" });
+      await this.deps.vault.patchTask(task.path, { status: "Running", agentState: "NeedsReview" });
       this.deps.notifier.notice(`Task ${task.id}: could not fast-forward ${ws.baseBranch} (${ff.reason ?? "blocked"}). Resolve and retry.`);
       return;
     }

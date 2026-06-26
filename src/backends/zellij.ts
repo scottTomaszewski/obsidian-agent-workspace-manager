@@ -1,5 +1,8 @@
 import type { MuxBackend } from "../core/ports";
 import { run } from "./exec";
+import { SpawnTerminalLauncher, type TerminalLauncher } from "./terminal";
+
+export const DEFAULT_TERMINAL_COMMAND = "gnome-terminal --";
 
 /**
  * Parse the output of `zellij list-sessions --no-formatting` and return the
@@ -14,30 +17,51 @@ export function parseAliveSessions(listOutput: string): string[] {
     .map((line) => line.trim().split(/\s+/)[0]);
 }
 
+/** Single-quote a string for safe embedding in a bash script. */
+function shquote(s: string): string {
+  return `'${s.replace(/'/g, `'\\''`)}'`;
+}
+
 export const zellijArgs = {
-  create(session: string, _cwd: string, command: string): string[] {
-    // Launch a detached session that runs `command`, then drops to a shell.
-    return ["-s", session, "--", "bash", "-lc", `${command}; exec bash`];
+  // Build the zellij argv that runs the agent inside a fresh session. cwd and
+  // env are baked into the bash script rather than passed via the process
+  // environment, because terminal emulators (e.g. gnome-terminal) route through
+  // a pre-existing server that does not inherit per-invocation cwd/env. The
+  // trailing `exec bash` keeps the pane open after the agent exits so the user
+  // can inspect it.
+  create(session: string, cwd: string, command: string, env: Record<string, string>): string[] {
+    const exports = Object.entries(env)
+      .map(([k, v]) => `export ${k}=${shquote(v)};`)
+      .join(" ");
+    const script = `cd ${shquote(cwd)}; ${exports} ${command}; exec bash`;
+    return ["-s", session, "--", "bash", "-lc", script];
   },
+  attach(session: string): string[] { return ["attach", session]; },
   kill(session: string): string[] { return ["kill-session", session]; },
   list(): string[] { return ["list-sessions", "--no-formatting"]; },
 };
 
 export class ZellijBackend implements MuxBackend {
-  async create(session: string, cwd: string, command: string, env: Record<string, string>): Promise<void> {
-    const res = await run("zellij", zellijArgs.create(session, cwd, command), {
-      cwd, env: { ...process.env, ...env },
-    });
-    if (res.code !== 0) throw new Error(`zellij create failed: ${res.stderr}`);
+  private terminal: TerminalLauncher;
+
+  constructor(terminalCommand: string = DEFAULT_TERMINAL_COMMAND) {
+    this.terminal = new SpawnTerminalLauncher(terminalCommand || DEFAULT_TERMINAL_COMMAND);
   }
+
+  // Launching and attaching need a real terminal, so they open an emulator
+  // window. Killing and listing are headless CLI calls that need no TTY.
+  async create(session: string, cwd: string, command: string, env: Record<string, string>): Promise<void> {
+    await this.terminal.open(["zellij", ...zellijArgs.create(session, cwd, command, env)], { cwd, env });
+  }
+
   async kill(session: string): Promise<void> {
     await run("zellij", zellijArgs.kill(session));
   }
+
   async focus(session: string): Promise<void> {
-    // Best-effort: attach in a new terminal is environment-specific; POC focuses by
-    // surfacing the session name. Attaching is documented in the manual checklist.
-    await run("zellij", ["attach", session]);
+    await this.terminal.open(["zellij", ...zellijArgs.attach(session)]);
   }
+
   async isAlive(session: string): Promise<boolean> {
     const res = await run("zellij", zellijArgs.list());
     return parseAliveSessions(res.stdout).includes(session);

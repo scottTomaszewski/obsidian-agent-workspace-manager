@@ -2,13 +2,17 @@ import { describe, it, expect } from "vitest";
 import { zellijArgs, parseAliveSessions } from "../src/backends/zellij";
 
 describe("zellijArgs", () => {
-  it("builds a detached create command running the agent command", () => {
-    const args = zellijArgs.create("oawm-DS-1", "/wt", "claude");
-    // zellij -s <session> action / new-session pattern:
-    expect(args).toContain("oawm-DS-1");
-    expect(args.join(" ")).toContain("claude");
+  it("creates a session whose script cd's to the cwd, exports env, and runs the command", () => {
+    const args = zellijArgs.create("oawm-DS-1", "/wt path", "claude", { CLAUDE_CONFIG_DIR: "/cfg" });
+    expect(args.slice(0, 5)).toEqual(["-s", "oawm-DS-1", "--", "bash", "-lc"]);
+    const script = args[5];
+    expect(script).toContain("cd '/wt path'");
+    expect(script).toContain("export CLAUDE_CONFIG_DIR='/cfg'");
+    expect(script).toContain("claude");
+    expect(script).toContain("exec bash");
   });
-  it("builds kill and list commands", () => {
+  it("builds attach, kill and list commands", () => {
+    expect(zellijArgs.attach("oawm-DS-1")).toEqual(["attach", "oawm-DS-1"]);
     expect(zellijArgs.kill("oawm-DS-1")).toEqual(["kill-session", "oawm-DS-1"]);
     expect(zellijArgs.list()).toEqual(["list-sessions", "--no-formatting"]);
   });

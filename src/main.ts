@@ -1,9 +1,9 @@
-import { Plugin, TFile, Notice, WorkspaceLeaf, normalizePath } from "obsidian";
+import { Plugin, TFile, Notice, WorkspaceLeaf, normalizePath, PluginSettingTab, Setting, App } from "obsidian";
 import { join } from "node:path";
 import { mkdirSync, watch as fsWatch, readFileSync } from "node:fs";
 import { ObsidianVaultGateway } from "./obsidian/vaultGateway";
 import { RealGitBackend } from "./backends/git";
-import { ZellijBackend } from "./backends/zellij";
+import { ZellijBackend, DEFAULT_TERMINAL_COMMAND } from "./backends/zellij";
 import { ClaudeBackend } from "./backends/claude";
 import { Orchestrator } from "./core/orchestrator";
 import { StatusIngest } from "./core/statusIngest";
@@ -12,7 +12,16 @@ import { DashboardView, DASHBOARD_VIEW_TYPE } from "./obsidian/dashboardView";
 import { DiffModal } from "./obsidian/diffPanel";
 import type { TaskNote } from "./domain/types";
 
+interface OawmSettings {
+  terminalCommand: string;
+}
+
+const DEFAULT_SETTINGS: OawmSettings = {
+  terminalCommand: DEFAULT_TERMINAL_COMMAND,
+};
+
 export default class OawmPlugin extends Plugin {
+  settings!: OawmSettings;
   private orchestrator!: Orchestrator;
   private vault!: ObsidianVaultGateway;
   private git!: RealGitBackend;
@@ -22,13 +31,16 @@ export default class OawmPlugin extends Plugin {
   private fsWatcher?: ReturnType<typeof fsWatch>;
 
   async onload() {
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    this.addSettingTab(new OawmSettingTab(this.app, this));
+
     const vaultRoot = (this.app.vault.adapter as any).getBasePath?.() ?? "";
     this.statusDir = join(vaultRoot, ".oawm", "status");
     const hookHelperPath = join(vaultRoot, this.manifest.dir ?? "", "oawm-hook.mjs");
 
     this.vault = new ObsidianVaultGateway(this.app);
     this.git = new RealGitBackend();
-    this.mux = new ZellijBackend();
+    this.mux = new ZellijBackend(this.settings.terminalCommand);
     const notifier = { notice: (m: string) => new Notice(`OAWM: ${m}`), confirm: async (m: string) => confirm(m) };
     const agent = new ClaudeBackend({ mux: this.mux, hookHelperPath, statusDir: this.statusDir });
     this.orchestrator = new Orchestrator({ vault: this.vault, git: this.git, mux: this.mux, agent, notifier, vaultRoot });
@@ -117,5 +129,32 @@ export default class OawmPlugin extends Plugin {
     if (!leaf) { new Notice("OAWM: could not open dashboard"); return; }
     await leaf.setViewState({ type: DASHBOARD_VIEW_TYPE, active: true });
     this.app.workspace.revealLeaf(leaf);
+  }
+}
+
+class OawmSettingTab extends PluginSettingTab {
+  constructor(app: App, private plugin: OawmPlugin) {
+    super(app, plugin);
+  }
+
+  display(): void {
+    const { containerEl } = this;
+    containerEl.empty();
+    new Setting(containerEl)
+      .setName("Terminal command")
+      .setDesc(
+        "Terminal emulator used to launch and attach to agent sessions. The session command is appended after this prefix. " +
+        "Examples: \"gnome-terminal --\", \"konsole -e\", \"xterm -e\", \"alacritty -e\", \"kitty\", \"wezterm start --\". " +
+        "Takes effect on the next plugin reload.",
+      )
+      .addText((text) =>
+        text
+          .setPlaceholder(DEFAULT_TERMINAL_COMMAND)
+          .setValue(this.plugin.settings.terminalCommand)
+          .onChange(async (value) => {
+            this.plugin.settings.terminalCommand = value.trim() || DEFAULT_TERMINAL_COMMAND;
+            await this.plugin.saveData(this.plugin.settings);
+          }),
+      );
   }
 }

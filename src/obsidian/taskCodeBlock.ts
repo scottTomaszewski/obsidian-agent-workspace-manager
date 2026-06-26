@@ -3,7 +3,7 @@ import type { TaskNote } from "../domain/types";
 
 export type ActionId = "start" | "openTerminal" | "viewDiff" | "cancel" | "complete" | "restart";
 
-export function availableActions(task: TaskNote): ActionId[] {
+function stateActions(task: TaskNote): ActionId[] {
   if (task.status === "Pending") return ["start"];
   if (task.status === "Cancelled" || task.status === "Completed") return ["start"];
   // status === "Running"
@@ -14,6 +14,16 @@ export function availableActions(task: TaskNote): ActionId[] {
     case "Running": return ["openTerminal", "viewDiff", "cancel"];
     default: return ["openTerminal", "viewDiff", "cancel"];
   }
+}
+
+export function availableActions(task: TaskNote): ActionId[] {
+  const actions = stateActions(task);
+  // Whenever a session exists, always offer to (re)open its terminal — e.g. a
+  // task marked Failed may still have a live session to reattach to.
+  if (task.session && !actions.includes("openTerminal")) {
+    return ["openTerminal", ...actions];
+  }
+  return actions;
 }
 
 export interface ActionBarDeps {

@@ -61,10 +61,26 @@ export class Orchestrator {
     }
     const prompt = await this.deps.vault.getTaskBody(task.path);
     const { session } = await this.deps.agent.launch({ task, cwd, agent, vaultRoot: this.deps.vaultRoot, prompt });
+    // The terminal/zellij startup is async: agent.launch resolves when the
+    // terminal spawns, before zellij has registered the session. Wait for the
+    // session to actually appear so we don't write Running and then immediately
+    // race a liveness check into Failed.
+    const alive = await this.waitForSession(session);
     await this.deps.vault.patchTask(task.path, {
-      agentState: "Running", branch, worktree: cwd, session,
+      agentState: alive ? "Running" : "Failed", branch, worktree: cwd, session,
     });
-    this.deps.notifier.notice(`Task ${task.id}: agent running`);
+    this.deps.notifier.notice(
+      alive ? `Task ${task.id}: agent running` : `Task ${task.id}: session did not start`,
+    );
+  }
+
+  private async waitForSession(session: string): Promise<boolean> {
+    const deadline = Date.now() + 8000;
+    for (;;) {
+      if (await this.deps.mux.isAlive(session)) return true;
+      if (Date.now() >= deadline) return false;
+      await new Promise((r) => setTimeout(r, 500));
+    }
   }
 
   private async markFailed(task: TaskNote): Promise<void> {

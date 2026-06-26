@@ -19,8 +19,16 @@ describe("availableActions", () => {
     expect(availableActions({ ...base, status: "Running", agentState: "NeedsReview" }))
       .toEqual(["openTerminal", "viewDiff", "complete", "cancel"]);
   });
-  it("Failed → restart, cancel", () => {
+  it("Failed (no session) → restart, cancel", () => {
     expect(availableActions({ ...base, status: "Running", agentState: "Failed" }))
       .toEqual(["restart", "cancel"]);
+  });
+  it("Failed with a live session → also offers openTerminal", () => {
+    expect(availableActions({ ...base, status: "Running", agentState: "Failed", session: "oawm-DS-1" }))
+      .toEqual(["openTerminal", "restart", "cancel"]);
+  });
+  it("does not duplicate openTerminal when state already has it", () => {
+    expect(availableActions({ ...base, status: "Running", agentState: "Running", session: "oawm-DS-1" }))
+      .toEqual(["openTerminal", "viewDiff", "cancel"]);
   });
 });

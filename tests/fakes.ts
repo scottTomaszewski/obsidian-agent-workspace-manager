@@ -43,7 +43,11 @@ export class FakeGit implements GitBackend {
 
 export class FakeMux implements MuxBackend {
   alive = new Set<string>();
-  async create(session: string, _cwd: string, _command: string, _env: Record<string, string>) { this.alive.add(session); }
+  creates: { session: string; cwd: string; command: string; env: Record<string, string> }[] = [];
+  async create(session: string, cwd: string, command: string, env: Record<string, string>) {
+    this.creates.push({ session, cwd, command, env });
+    this.alive.add(session);
+  }
   async kill(session: string) { this.alive.delete(session); }
   async focus() {}
   async isAlive(session: string) { return this.alive.has(session); }

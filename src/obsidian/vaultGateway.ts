@@ -39,6 +39,8 @@ export function frontmatterToAgent(name: string, fm: FM): AgentNote {
     name,
     provider: "claude",
     account: { configDir: fm.account?.config_dir ?? "" },
+    command: fm.command ?? "claude",
+    env: (fm.env as Record<string, string>) ?? {},
   };
 }
 

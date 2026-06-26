@@ -31,6 +31,8 @@ export interface AgentNote {
   name: string;
   provider: "claude";
   account: { configDir: string };
+  command: string;            // command launched in the session (default "claude")
+  env: Record<string, string>; // extra env vars exported before the command
 }
 
 export function slugify(name: string): string {

@@ -25,5 +25,15 @@ describe("frontmatter mappers", () => {
     expect(w.repositories[0].path).toBe("/code/repo");
     const a = frontmatterToAgent("vexa", { type: "agent", provider: "claude", account: { config_dir: "/cfg" } });
     expect(a.account.configDir).toBe("/cfg");
+    expect(a.command).toBe("claude"); // default
+    expect(a.env).toEqual({});
+
+    const custom = frontmatterToAgent("personal", {
+      type: "agent", provider: "claude",
+      account: { config_dir: "~/.claude_personal" },
+      command: "claude", env: { CLAUDE_CODE_USE_FOUNDRY: "0" },
+    });
+    expect(custom.command).toBe("claude");
+    expect(custom.env).toEqual({ CLAUDE_CODE_USE_FOUNDRY: "0" });
   });
 });

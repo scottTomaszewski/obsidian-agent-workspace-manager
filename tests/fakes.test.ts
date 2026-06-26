@@ -21,7 +21,7 @@ describe("fakes", () => {
     const a = new FakeAgent();
     const res = await a.launch({
       task: { path: "T.md", id: "T-1", title: "T" } as any,
-      cwd: "/wt", agent: { name: "vexa", provider: "claude", account: { configDir: "/c" } },
+      cwd: "/wt", agent: { name: "vexa", provider: "claude", account: { configDir: "/c" }, command: "claude", env: {} },
       vaultRoot: "/v",
     });
     expect(res.session).toContain("T-1");

@@ -8,7 +8,7 @@ const ws: WorkspaceNote = {
   isolation: "worktree", baseBranch: "main",
   git: { user: "V", email: "v@e" }, mux: { backend: "zellij" }, host: { type: "local" }, env: {},
 };
-const agent: AgentNote = { name: "vexa", provider: "claude", account: { configDir: "/c" } };
+const agent: AgentNote = { name: "vexa", provider: "claude", account: { configDir: "/c" }, command: "claude", env: {} };
 
 function make() {
   const vault = new FakeVault();

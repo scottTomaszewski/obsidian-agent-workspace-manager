@@ -3,6 +3,7 @@ import { run } from "./exec";
 import { SpawnTerminalLauncher, type TerminalLauncher } from "./terminal";
 
 export const DEFAULT_TERMINAL_COMMAND = "gnome-terminal --";
+export const DEFAULT_ZELLIJ_BIN = "zellij";
 
 /**
  * Parse the output of `zellij list-sessions --no-formatting` and return the
@@ -43,27 +44,31 @@ export const zellijArgs = {
 
 export class ZellijBackend implements MuxBackend {
   private terminal: TerminalLauncher;
+  private bin: string;
 
-  constructor(terminalCommand: string = DEFAULT_TERMINAL_COMMAND) {
+  constructor(terminalCommand: string = DEFAULT_TERMINAL_COMMAND, zellijBin: string = DEFAULT_ZELLIJ_BIN) {
     this.terminal = new SpawnTerminalLauncher(terminalCommand || DEFAULT_TERMINAL_COMMAND);
+    // The terminal emulator and Electron exec the binary by PATH lookup, where a
+    // shell alias (e.g. for /opt/zellij) is not visible — so allow an explicit path.
+    this.bin = zellijBin || DEFAULT_ZELLIJ_BIN;
   }
 
   // Launching and attaching need a real terminal, so they open an emulator
   // window. Killing and listing are headless CLI calls that need no TTY.
   async create(session: string, cwd: string, command: string, env: Record<string, string>): Promise<void> {
-    await this.terminal.open(["zellij", ...zellijArgs.create(session, cwd, command, env)], { cwd, env });
+    await this.terminal.open([this.bin, ...zellijArgs.create(session, cwd, command, env)], { cwd, env });
   }
 
   async kill(session: string): Promise<void> {
-    await run("zellij", zellijArgs.kill(session));
+    await run(this.bin, zellijArgs.kill(session));
   }
 
   async focus(session: string): Promise<void> {
-    await this.terminal.open(["zellij", ...zellijArgs.attach(session)]);
+    await this.terminal.open([this.bin, ...zellijArgs.attach(session)]);
   }
 
   async isAlive(session: string): Promise<boolean> {
-    const res = await run("zellij", zellijArgs.list());
+    const res = await run(this.bin, zellijArgs.list());
     return parseAliveSessions(res.stdout).includes(session);
   }
 }

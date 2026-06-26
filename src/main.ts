@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { mkdirSync, watch as fsWatch, readFileSync } from "node:fs";
 import { ObsidianVaultGateway } from "./obsidian/vaultGateway";
 import { RealGitBackend } from "./backends/git";
-import { ZellijBackend, DEFAULT_TERMINAL_COMMAND } from "./backends/zellij";
+import { ZellijBackend, DEFAULT_TERMINAL_COMMAND, DEFAULT_ZELLIJ_BIN } from "./backends/zellij";
 import { ClaudeBackend } from "./backends/claude";
 import { Orchestrator } from "./core/orchestrator";
 import { StatusIngest } from "./core/statusIngest";
@@ -14,10 +14,12 @@ import type { TaskNote } from "./domain/types";
 
 interface OawmSettings {
   terminalCommand: string;
+  zellijPath: string;
 }
 
 const DEFAULT_SETTINGS: OawmSettings = {
   terminalCommand: DEFAULT_TERMINAL_COMMAND,
+  zellijPath: DEFAULT_ZELLIJ_BIN,
 };
 
 export default class OawmPlugin extends Plugin {
@@ -40,7 +42,7 @@ export default class OawmPlugin extends Plugin {
 
     this.vault = new ObsidianVaultGateway(this.app);
     this.git = new RealGitBackend();
-    this.mux = new ZellijBackend(this.settings.terminalCommand);
+    this.mux = new ZellijBackend(this.settings.terminalCommand, this.settings.zellijPath);
     const notifier = { notice: (m: string) => new Notice(`OAWM: ${m}`), confirm: async (m: string) => confirm(m) };
     const agent = new ClaudeBackend({ mux: this.mux, hookHelperPath, statusDir: this.statusDir });
     this.orchestrator = new Orchestrator({ vault: this.vault, git: this.git, mux: this.mux, agent, notifier, vaultRoot });
@@ -153,6 +155,23 @@ class OawmSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.terminalCommand)
           .onChange(async (value) => {
             this.plugin.settings.terminalCommand = value.trim() || DEFAULT_TERMINAL_COMMAND;
+            await this.plugin.saveData(this.plugin.settings);
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Zellij path")
+      .setDesc(
+        "Path to the zellij binary. Use an absolute path (e.g. \"/opt/zellij\") if zellij is not on PATH " +
+        "for non-interactive processes — a shell alias in ~/.bashrc is not visible here. " +
+        "Takes effect on the next plugin reload.",
+      )
+      .addText((text) =>
+        text
+          .setPlaceholder(DEFAULT_ZELLIJ_BIN)
+          .setValue(this.plugin.settings.zellijPath)
+          .onChange(async (value) => {
+            this.plugin.settings.zellijPath = value.trim() || DEFAULT_ZELLIJ_BIN;
             await this.plugin.saveData(this.plugin.settings);
           }),
       );

@@ -30,6 +30,7 @@ export default class OawmPlugin extends Plugin {
   private git!: RealGitBackend;
   private mux!: ZellijBackend;
   private statusDir!: string;
+  private ingest!: StatusIngest;
   private sweepTimer?: number;
   private fsWatcher?: ReturnType<typeof fsWatch>;
 
@@ -55,7 +56,7 @@ export default class OawmPlugin extends Plugin {
     const agent = new ClaudeBackend({ mux: this.mux, hookHelperPath, statusDir: this.statusDir });
     this.orchestrator = new Orchestrator({ vault: this.vault, git: this.git, mux: this.mux, agent, notifier, vaultRoot });
 
-    const ingest = new StatusIngest({ vault: this.vault, reconcile: (p) => this.orchestrator.reconcileTask(p) });
+    this.ingest = new StatusIngest({ vault: this.vault, reconcile: (p) => this.orchestrator.reconcileTask(p) });
 
     // Action bar
     registerTaskCodeBlock(this, {
@@ -68,6 +69,11 @@ export default class OawmPlugin extends Plugin {
       new DashboardView(leaf, this.vault, (path) => this.openTask(path)));
     this.addRibbonIcon("bot", "Agent Workspace", () => this.activateDashboard());
     this.addCommand({ id: "open-dashboard", name: "Open Agent Workspace", callback: () => this.activateDashboard() });
+    this.addCommand({
+      id: "reconcile-tasks",
+      name: "Reconcile tasks (self-heal state)",
+      callback: () => { void this.sweep().then(() => new Notice("OAWM: reconciled tasks")); },
+    });
 
     // Reconcile on task-note edits
     this.registerEvent(this.app.metadataCache.on("changed", (file: TFile) => {
@@ -83,11 +89,13 @@ export default class OawmPlugin extends Plugin {
     }
 
     // Watch status markers
-    this.startStatusWatcher(ingest);
+    this.startStatusWatcher(this.ingest);
 
-    // Liveness sweep every 15s
+    // Self-healing sweep every 15s, plus once on load (the plugin may have been
+    // closed while agents were active or hooks fired).
     this.sweepTimer = window.setInterval(() => void this.sweep(), 15000);
     this.registerInterval(this.sweepTimer);
+    void this.sweep();
   }
 
   onunload() { this.fsWatcher?.close(); }
@@ -104,8 +112,20 @@ export default class OawmPlugin extends Plugin {
 
   private async sweep() {
     for (const task of await this.vault.listTasks()) {
-      if (task.status === "Running") void this.orchestrator.reconcileTask(task.path);
+      if (task.status !== "Running") continue;
+      // Self-heal from the durable marker file (recovers a hook event whose
+      // fsWatch notification was dropped or fired while the plugin was closed),
+      // then reconcile liveness (dead session -> Failed).
+      await this.selfHealFromMarker(task.id);
+      void this.orchestrator.reconcileTask(task.path);
     }
+  }
+
+  private async selfHealFromMarker(taskId: string) {
+    try {
+      const raw = readFileSync(join(this.statusDir, `${taskId}.json`), "utf8");
+      await this.ingest.ingest(taskId, raw);
+    } catch { /* no marker for this task yet */ }
   }
 
   private async handleAction(action: ActionId, task: TaskNote) {

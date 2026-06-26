@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync, mkdtempSync } from "node:fs";
+import { mkdirSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import type { AgentBackend, LaunchArgs, MuxBackend } from "../core/ports";
@@ -45,6 +45,10 @@ export class ClaudeBackend implements AgentBackend {
 
   async launch(args: LaunchArgs): Promise<{ session: string }> {
     const session = `oawm-${args.task.id}`;
+    // Clear any stale status marker from a previous run so the self-healing
+    // re-scan can't resurrect old state (e.g. a leftover NeedsReview) for the
+    // fresh session.
+    rmSync(join(this.deps.statusDir, `${args.task.id}.json`), { force: true });
     const claudeDir = join(args.cwd, ".claude");
     mkdirSync(claudeDir, { recursive: true });
     const settings = buildHookSettings(args.task.id, this.deps.hookHelperPath, this.deps.statusDir);

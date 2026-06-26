@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mkdtempSync, readFileSync, existsSync } from "node:fs";
+import { mkdtempSync, readFileSync, existsSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { homedir } from "node:os";
@@ -71,6 +71,18 @@ describe("ClaudeBackend.launch", () => {
     expect(call.command).toMatch(/^claude "\$\(cat '.*prompt\.md'\)"$/);
     const file = call.command.match(/cat '([^']+)'/)![1];
     expect(readFileSync(file, "utf8")).toBe("Add a login button");
+  });
+
+  it("clears a stale status marker for the task before launching", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "oawm-cc-"));
+    const statusDir = mkdtempSync(join(tmpdir(), "oawm-status-"));
+    writeFileSync(join(statusDir, "DS-4.json"), JSON.stringify({ event: "review", ts: 1 }));
+    const mux = new FakeMux();
+    const backend = new ClaudeBackend({ mux, hookHelperPath: "/p/oawm-hook.mjs", statusDir });
+    const task = { path: "T.md", id: "DS-4", title: "T" } as TaskNote;
+    const agent: AgentNote = { name: "vexa", provider: "claude", account: { configDir: "/cfg" }, command: "claude", env: {} };
+    await backend.launch({ task, cwd, agent, vaultRoot: "/v", prompt: "" });
+    expect(existsSync(join(statusDir, "DS-4.json"))).toBe(false);
   });
 });
 

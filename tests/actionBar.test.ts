@@ -6,33 +6,31 @@ const base: TaskNote = {
   path: "T.md", id: "DS-1", title: "T", workspace: "W", repositories: ["repo"],
   agent: "vexa", status: "Pending", agentState: "", worktree: "", branch: "", session: "",
 };
+const active = (agentState: TaskNote["agentState"], extra: Partial<TaskNote> = {}): TaskNote =>
+  ({ ...base, status: "Running", agentState, branch: "oawm/ds-1-t", session: "oawm-DS-1", ...extra });
 
 describe("availableActions", () => {
   it("Pending → start", () => {
     expect(availableActions(base)).toEqual(["start"]);
   });
-  it("Running+Running → terminal, diff, cancel", () => {
-    expect(availableActions({ ...base, status: "Running", agentState: "Running" }))
-      .toEqual(["openTerminal", "viewDiff", "cancel"]);
+  it("active (NeedsReview) → terminal, diff, the four git actions, cancel", () => {
+    expect(availableActions(active("NeedsReview")))
+      .toEqual(["openTerminal", "viewDiff", "merge", "mergePush", "push", "openPr", "cancel"]);
   });
-  it("NeedsReview → terminal, diff, complete, cancel", () => {
-    expect(availableActions({ ...base, status: "Running", agentState: "NeedsReview" }))
-      .toEqual(["openTerminal", "viewDiff", "complete", "cancel"]);
+  it("active (Waiting) → same git actions available", () => {
+    expect(availableActions(active("Waiting")))
+      .toEqual(["openTerminal", "viewDiff", "merge", "mergePush", "push", "openPr", "cancel"]);
   });
-  it("Waiting → terminal, diff, complete, cancel (can finish from Waiting)", () => {
-    expect(availableActions({ ...base, status: "Running", agentState: "Waiting" }))
-      .toEqual(["openTerminal", "viewDiff", "complete", "cancel"]);
+  it("active (Running) → git actions available (branch exists)", () => {
+    expect(availableActions(active("Running")))
+      .toEqual(["openTerminal", "viewDiff", "merge", "mergePush", "push", "openPr", "cancel"]);
   });
-  it("Failed (no session) → restart, cancel", () => {
-    expect(availableActions({ ...base, status: "Running", agentState: "Failed" }))
-      .toEqual(["restart", "cancel"]);
-  });
-  it("Failed with a live session → also offers openTerminal", () => {
-    expect(availableActions({ ...base, status: "Running", agentState: "Failed", session: "oawm-DS-1" }))
+  it("Failed with a session → openTerminal + restart + cancel (no git actions)", () => {
+    expect(availableActions(active("Failed")))
       .toEqual(["openTerminal", "restart", "cancel"]);
   });
-  it("does not duplicate openTerminal when state already has it", () => {
-    expect(availableActions({ ...base, status: "Running", agentState: "Running", session: "oawm-DS-1" }))
+  it("active but no branch yet → no git actions", () => {
+    expect(availableActions({ ...active("Running"), branch: "" }))
       .toEqual(["openTerminal", "viewDiff", "cancel"]);
   });
 });

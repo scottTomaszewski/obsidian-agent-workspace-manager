@@ -1,27 +1,22 @@
 import { Plugin } from "obsidian";
 import type { TaskNote } from "../domain/types";
 
-export type ActionId = "start" | "openTerminal" | "viewDiff" | "cancel" | "complete" | "restart";
+export type ActionId = "start" | "openTerminal" | "viewDiff" | "merge" | "mergePush" | "push" | "openPr" | "cancel" | "restart";
+
+const GIT_ACTIONS: ActionId[] = ["merge", "mergePush", "push", "openPr"];
 
 function stateActions(task: TaskNote): ActionId[] {
   if (task.status === "Pending") return ["start"];
   if (task.status === "Cancelled" || task.status === "Completed") return ["start"];
   // status === "Running"
-  switch (task.agentState) {
-    // Waiting and NeedsReview both mean claude has paused/finished, so allow
-    // Complete & Merge from either.
-    case "Waiting":
-    case "NeedsReview": return ["openTerminal", "viewDiff", "complete", "cancel"];
-    case "Failed": return ["restart", "cancel"];
-    case "Running": return ["openTerminal", "viewDiff", "cancel"];
-    default: return ["openTerminal", "viewDiff", "cancel"];
-  }
+  if (task.agentState === "Failed") return ["restart", "cancel"];
+  // Running / Waiting / NeedsReview / "" → active
+  const git = task.branch ? GIT_ACTIONS : [];
+  return ["openTerminal", "viewDiff", ...git, "cancel"];
 }
 
 export function availableActions(task: TaskNote): ActionId[] {
   const actions = stateActions(task);
-  // Whenever a session exists, always offer to (re)open its terminal — e.g. a
-  // task marked Failed may still have a live session to reattach to.
   if (task.session && !actions.includes("openTerminal")) {
     return ["openTerminal", ...actions];
   }
@@ -35,7 +30,8 @@ export interface ActionBarDeps {
 
 const LABELS: Record<ActionId, string> = {
   start: "Start", openTerminal: "Open Terminal", viewDiff: "View Diff",
-  cancel: "Cancel", complete: "Complete & Merge", restart: "Restart",
+  merge: "Merge", mergePush: "Merge & Push", push: "Push", openPr: "Open PR/MR",
+  cancel: "Cancel", restart: "Restart",
 };
 
 export function registerTaskCodeBlock(plugin: Plugin, deps: ActionBarDeps): void {

@@ -27,6 +27,7 @@ const DEFAULT_SETTINGS: OawmSettings = {
 export default class OawmPlugin extends Plugin {
   settings!: OawmSettings;
   private orchestrator!: Orchestrator;
+  private completion!: CompletionCoordinator;
   private vault!: ObsidianVaultGateway;
   private git!: RealGitBackend;
   private mux!: ZellijBackend;
@@ -55,8 +56,8 @@ export default class OawmPlugin extends Plugin {
     this.mux = new ZellijBackend(this.settings.terminalCommand, this.settings.zellijPath);
     const notifier = { notice: (m: string) => new Notice(`OAWM: ${m}`), confirm: async (m: string) => confirm(m) };
     const agent = new ClaudeBackend({ mux: this.mux, hookHelperPath, statusDir: this.statusDir });
-    const completion = new CompletionCoordinator({ vault: this.vault, git: this.git, mux: this.mux, notifier });
-    this.orchestrator = new Orchestrator({ vault: this.vault, git: this.git, mux: this.mux, agent, notifier, vaultRoot, completion });
+    this.completion = new CompletionCoordinator({ vault: this.vault, git: this.git, mux: this.mux, notifier });
+    this.orchestrator = new Orchestrator({ vault: this.vault, git: this.git, mux: this.mux, agent, notifier, vaultRoot, completion: this.completion });
 
     this.ingest = new StatusIngest({ vault: this.vault, reconcile: (p) => this.orchestrator.reconcileTask(p) });
 
@@ -134,10 +135,17 @@ export default class OawmPlugin extends Plugin {
     switch (action) {
       case "start": await this.vault.patchTask(task.path, { status: "Running" }); break;
       case "cancel": await this.vault.patchTask(task.path, { status: "Cancelled" }); break;
-      case "complete": await this.vault.patchTask(task.path, { status: "Completed" }); break;
       case "restart": await this.vault.patchTask(task.path, { agentState: "", status: "Running" }); break;
       case "openTerminal": if (task.session) await this.mux.focus(task.session); return;
       case "viewDiff": await this.showDiff(task); return;
+      case "merge": await this.completion.merge(task, { push: false }); break;
+      case "mergePush": await this.completion.merge(task, { push: true }); break;
+      case "push": await this.completion.pushBranch(task); break;
+      case "openPr": {
+        const { url } = await this.completion.openPr(task);
+        if (url) { const { shell } = require("electron"); shell.openExternal(url); }
+        break;
+      }
     }
     await this.orchestrator.reconcileTask(task.path);
   }

@@ -16,8 +16,12 @@ Install: copy `main.js`, `manifest.json`, `styles.css` into `<vault>/.obsidian/p
 4. Let claude finish a turn (Stop hook).
    - [ ] badge flips to NeedsReview
 5. Click **View Diff** → modal shows colored diff of the branch.
-6. Click **Complete & Merge** → branch merges into main, worktree removed, session killed.
-7. Dirty-guard: start another task, leave uncommitted work in its worktree, Complete → confirm dialog appears;
+6. Completion actions (task must have a branch):
+   - [ ] **Merge**: branch fast-forwards into base branch, worktree removed, session killed. Badge → Idle.
+   - [ ] **Merge & Push**: same as Merge, then also pushes base branch to remote.
+   - [ ] **Push**: pushes task branch to remote without merging (session stays live).
+   - [ ] **Open PR/MR**: pushes task branch; on GitHub opens the compare URL in the browser; on GitLab triggers MR via push options.
+7. Dirty-guard: start another task, leave uncommitted work in its worktree, click Merge → confirm dialog appears;
    declining leaves the worktree intact.
 8. Crash backstop: start a task, `zellij kill-session oawm-<id>` manually → within 15s badge flips to Failed.
    NOTE: because the session runs `claude; exec bash`, the 15s Failed backstop detects whole-session death (e.g. `zellij kill-session`), not the claude process exiting on its own (the pane persists by design so you can inspect it).

@@ -26,24 +26,46 @@ function shquote(s: string): string {
   return `'${s.replace(/'/g, `'\\''`)}'`;
 }
 
+/** Double-quote a string for embedding in a KDL layout file. */
+function kdlString(s: string): string {
+  return `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+/**
+ * Build a zellij KDL layout whose single pane runs the agent command. zellij's
+ * CLI does not accept `zellij -s NAME -- command`; running a command in a fresh
+ * session is done via a layout. The pane runs `bash -lc "<command>; exec bash"`
+ * so the pane stays open after the agent exits.
+ */
+export function buildLayout(command: string): string {
+  const inner = `${command}; exec bash`;
+  return [
+    "layout {",
+    `    pane command="bash" {`,
+    `        args "-lc" ${kdlString(inner)}`,
+    "    }",
+    "}",
+    "",
+  ].join("\n");
+}
+
 /**
  * Build the bash launcher script run inside the terminal window. It exports the
  * agent env and cd's to the worktree (reliable even when the emulator routes
- * through a server that ignores per-invocation cwd/env), runs the agent inside a
- * fresh zellij session, and ALWAYS drops to an interactive shell afterward — so
- * if zellij or the agent fails, the window stays open with the error visible
- * instead of vanishing.
+ * through a server that ignores per-invocation cwd/env; the new session and its
+ * panes inherit this cwd/env), starts a new zellij session with the layout, and
+ * ALWAYS drops to an interactive shell afterward — so if zellij fails the window
+ * stays open with the error visible instead of vanishing.
  */
 export function buildLaunchScript(
-  bin: string, session: string, cwd: string, command: string, env: Record<string, string>,
+  bin: string, session: string, cwd: string, env: Record<string, string>, layoutPath: string,
 ): string {
   const exports = Object.entries(env).map(([k, v]) => `export ${k}=${shquote(v)}`);
-  const paneCommand = shquote(`${command}; exec bash`);
   return [
     "#!/usr/bin/env bash",
     `cd ${shquote(cwd)} || true`,
     ...exports,
-    `${shquote(bin)} -s ${shquote(session)} -- bash -lc ${paneCommand}`,
+    `${shquote(bin)} -s ${shquote(session)} -l ${shquote(layoutPath)}`,
     "ec=$?",
     "echo",
     `echo "[oawm] zellij session ended (exit $ec). Window kept open so any error above is readable; press Ctrl-D to close."`,
@@ -71,10 +93,12 @@ export class ZellijBackend implements MuxBackend {
   // Launching and attaching need a real terminal, so they open an emulator
   // window. Killing and listing are headless CLI calls that need no TTY.
   async create(session: string, cwd: string, command: string, env: Record<string, string>): Promise<void> {
-    const script = buildLaunchScript(this.bin, session, cwd, command, env);
-    const file = join(mkdtempSync(join(tmpdir(), "oawm-launch-")), "launch.sh");
-    writeFileSync(file, script, { mode: 0o700 });
-    await this.terminal.open(["bash", file], { cwd, env });
+    const dir = mkdtempSync(join(tmpdir(), "oawm-launch-"));
+    const layoutPath = join(dir, "layout.kdl");
+    writeFileSync(layoutPath, buildLayout(command));
+    const scriptPath = join(dir, "launch.sh");
+    writeFileSync(scriptPath, buildLaunchScript(this.bin, session, cwd, env, layoutPath), { mode: 0o700 });
+    await this.terminal.open(["bash", scriptPath], { cwd, env });
   }
 
   async kill(session: string): Promise<void> {

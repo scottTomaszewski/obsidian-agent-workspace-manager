@@ -1,15 +1,26 @@
 import { describe, it, expect } from "vitest";
-import { zellijArgs, parseAliveSessions, buildLaunchScript } from "../src/backends/zellij";
+import { zellijArgs, parseAliveSessions, buildLaunchScript, buildLayout } from "../src/backends/zellij";
+
+describe("buildLayout", () => {
+  it("runs the command in a bash pane that stays open", () => {
+    expect(buildLayout("claude")).toContain(`pane command="bash"`);
+    expect(buildLayout("claude")).toContain(`args "-lc" "claude; exec bash"`);
+  });
+  it("escapes quotes/backslashes in the command", () => {
+    expect(buildLayout(`claude --x "y"`)).toContain(`args "-lc" "claude --x \\"y\\"; exec bash"`);
+  });
+});
 
 describe("buildLaunchScript", () => {
-  const script = buildLaunchScript("/opt/zellij", "oawm-DS-1", "/wt path", "claude", { CLAUDE_CONFIG_DIR: "/cfg" });
+  const script = buildLaunchScript("/opt/zellij", "oawm-DS-1", "/wt path", { CLAUDE_CONFIG_DIR: "/cfg" }, "/tmp/l.kdl");
 
   it("cd's to the worktree and exports the agent env", () => {
     expect(script).toContain("cd '/wt path'");
     expect(script).toContain("export CLAUDE_CONFIG_DIR='/cfg'");
   });
-  it("launches the agent in a zellij session using the configured binary path", () => {
-    expect(script).toContain("'/opt/zellij' -s 'oawm-DS-1' -- bash -lc 'claude; exec bash'");
+  it("starts a new zellij session with the layout, using the configured binary", () => {
+    expect(script).toContain("'/opt/zellij' -s 'oawm-DS-1' -l '/tmp/l.kdl'");
+    expect(script).not.toContain("-- bash"); // the invalid trailing-command form is gone
   });
   it("keeps the window open after the session ends (error stays visible)", () => {
     expect(script).toContain("ec=$?");

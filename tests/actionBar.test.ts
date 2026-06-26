@@ -19,6 +19,10 @@ describe("availableActions", () => {
     expect(availableActions({ ...base, status: "Running", agentState: "NeedsReview" }))
       .toEqual(["openTerminal", "viewDiff", "complete", "cancel"]);
   });
+  it("Waiting → terminal, diff, complete, cancel (can finish from Waiting)", () => {
+    expect(availableActions({ ...base, status: "Running", agentState: "Waiting" }))
+      .toEqual(["openTerminal", "viewDiff", "complete", "cancel"]);
+  });
   it("Failed (no session) → restart, cancel", () => {
     expect(availableActions({ ...base, status: "Running", agentState: "Failed" }))
       .toEqual(["restart", "cancel"]);

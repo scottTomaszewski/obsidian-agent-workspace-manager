@@ -8,9 +8,11 @@ function stateActions(task: TaskNote): ActionId[] {
   if (task.status === "Cancelled" || task.status === "Completed") return ["start"];
   // status === "Running"
   switch (task.agentState) {
+    // Waiting and NeedsReview both mean claude has paused/finished, so allow
+    // Complete & Merge from either.
+    case "Waiting":
     case "NeedsReview": return ["openTerminal", "viewDiff", "complete", "cancel"];
     case "Failed": return ["restart", "cancel"];
-    case "Waiting":
     case "Running": return ["openTerminal", "viewDiff", "cancel"];
     default: return ["openTerminal", "viewDiff", "cancel"];
   }

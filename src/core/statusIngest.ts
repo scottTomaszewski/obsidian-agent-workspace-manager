@@ -19,6 +19,11 @@ export class StatusIngest {
     const tasks = await this.deps.vault.listTasks();
     const match = tasks.find((t: TaskNote) => t.id === taskId);
     if (!match) return;
+    // Don't downgrade a finished (review-ready) task back to Waiting: Claude Code
+    // fires a Notification (-> Waiting) when it goes idle ~60s AFTER finishing,
+    // which would otherwise clobber the NeedsReview set by the preceding Stop.
+    if (parsed.state === "Waiting" && match.agentState === "NeedsReview") return;
+    if (parsed.state === match.agentState) return; // no-op, avoid a redundant write/reconcile
     await this.deps.vault.patchTask(match.path, { agentState: parsed.state });
     await this.deps.reconcile(match.path);
   }

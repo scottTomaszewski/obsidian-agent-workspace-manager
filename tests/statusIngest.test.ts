@@ -30,4 +30,20 @@ describe("StatusIngest", () => {
     // no throw, nothing patched
     expect(await vault.listTasks()).toHaveLength(0);
   });
+  it("does not downgrade NeedsReview to Waiting (idle notification after finish)", async () => {
+    const vault = new FakeVault();
+    vault.seedTask({ path: "T.md", id: "DS-1", title: "T", status: "Running", agentState: "NeedsReview" });
+    const reconciled: string[] = [];
+    const ingest = new StatusIngest({ vault, reconcile: async (p) => { reconciled.push(p); } });
+    await ingest.ingest("DS-1", JSON.stringify({ event: "waiting" }));
+    expect((await vault.getTask("T.md"))?.agentState).toBe("NeedsReview");
+    expect(reconciled).toEqual([]); // no-op, no reconcile
+  });
+  it("still upgrades Waiting to NeedsReview when a Stop fires", async () => {
+    const vault = new FakeVault();
+    vault.seedTask({ path: "T.md", id: "DS-1", title: "T", status: "Running", agentState: "Waiting" });
+    const ingest = new StatusIngest({ vault, reconcile: async () => {} });
+    await ingest.ingest("DS-1", JSON.stringify({ event: "review" }));
+    expect((await vault.getTask("T.md"))?.agentState).toBe("NeedsReview");
+  });
 });

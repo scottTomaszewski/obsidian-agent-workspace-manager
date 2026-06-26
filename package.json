@@ -1,6 +1,6 @@
 {
   "name": "oawm",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Obsidian Agent Workspace Manager",
   "main": "main.js",
   "type": "module",

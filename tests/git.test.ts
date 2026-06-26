@@ -26,26 +26,6 @@ describe("RealGitBackend", () => {
     expect(existsSync(join(repo, ".oawm-worktrees", "x", "README.md"))).toBe(true);
   });
 
-  it("diffs and merges a branch with a commit", async () => {
-    await git.createWorktree(repo, "oawm/x", "x", "main");
-    const wt = join(repo, ".oawm-worktrees", "x");
-    writeFileSync(join(wt, "new.txt"), "content\n");
-    await run("git", ["add", "."], { cwd: wt });
-    await run("git", ["commit", "-m", "add new"], { cwd: wt });
-    const diff = await git.diff(repo, "main", "oawm/x");
-    expect(diff).toContain("new.txt");
-    const merged = await git.merge(repo, "main", "oawm/x");
-    expect(merged.ok).toBe(true);
-    expect(existsSync(join(repo, "new.txt"))).toBe(true);
-  });
-
-  it("detects uncommitted work in a worktree", async () => {
-    await git.createWorktree(repo, "oawm/x", "x", "main");
-    const wt = join(repo, ".oawm-worktrees", "x");
-    writeFileSync(join(wt, "dirty.txt"), "wip\n");
-    expect(await git.hasUncommittedOrUnmerged(repo, "x", "main", "oawm/x")).toBe(true);
-  });
-
   it("refuses to remove a dirty worktree without force", async () => {
     await git.createWorktree(repo, "oawm/x", "x", "main");
     const wt = join(repo, ".oawm-worktrees", "x");

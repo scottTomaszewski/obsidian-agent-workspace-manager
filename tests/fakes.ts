@@ -27,7 +27,6 @@ export class FakeVault implements VaultGateway {
 
 export class FakeGit implements GitBackend {
   worktrees = new Set<string>();
-  merged: string[] = [];
   removeCalls: { dir: string; force: boolean }[] = [];
   integratedBase: string[] = [];
   fastForwarded: { base: string; branch: string }[] = [];
@@ -43,17 +42,12 @@ export class FakeGit implements GitBackend {
 
   async createWorktree(_r: string, _b: string, dir: string) { this.worktrees.add(dir); }
   async diff() { return "diff --git a b"; }
-  async merge(_r: string, _base: string, branch: string) {
-    this.merged.push(branch);
-    return { ok: true, conflicts: false, message: "merged" };
-  }
   async removeWorktree(_r: string, dir: string, opts: { force: boolean }) {
     this.removeCalls.push({ dir, force: opts.force });
     if (this.dirty && !opts.force) return { ok: false, reason: "dirty" };
     this.worktrees.delete(dir);
     return { ok: true };
   }
-  async hasUncommittedOrUnmerged() { return this.dirty; }
   async mergeBaseIntoBranch(_wt: string, base: string) {
     this.integratedBase.push(base);
     return { ok: !this.conflicts && !this.inProgress, conflicts: this.conflicts, inProgress: this.inProgress, message: "" };

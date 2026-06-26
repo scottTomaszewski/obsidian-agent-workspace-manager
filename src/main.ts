@@ -7,6 +7,7 @@ import { RealGitBackend } from "./backends/git";
 import { ZellijBackend, DEFAULT_TERMINAL_COMMAND, DEFAULT_ZELLIJ_BIN } from "./backends/zellij";
 import { ClaudeBackend } from "./backends/claude";
 import { Orchestrator } from "./core/orchestrator";
+import { CompletionCoordinator } from "./core/completion";
 import { StatusIngest } from "./core/statusIngest";
 import { registerTaskCodeBlock, ActionId } from "./obsidian/taskCodeBlock";
 import { DashboardView, DASHBOARD_VIEW_TYPE } from "./obsidian/dashboardView";
@@ -54,7 +55,8 @@ export default class OawmPlugin extends Plugin {
     this.mux = new ZellijBackend(this.settings.terminalCommand, this.settings.zellijPath);
     const notifier = { notice: (m: string) => new Notice(`OAWM: ${m}`), confirm: async (m: string) => confirm(m) };
     const agent = new ClaudeBackend({ mux: this.mux, hookHelperPath, statusDir: this.statusDir });
-    this.orchestrator = new Orchestrator({ vault: this.vault, git: this.git, mux: this.mux, agent, notifier, vaultRoot });
+    const completion = new CompletionCoordinator({ vault: this.vault, git: this.git, mux: this.mux, notifier });
+    this.orchestrator = new Orchestrator({ vault: this.vault, git: this.git, mux: this.mux, agent, notifier, vaultRoot, completion });
 
     this.ingest = new StatusIngest({ vault: this.vault, reconcile: (p) => this.orchestrator.reconcileTask(p) });
 

@@ -12,9 +12,7 @@ export interface VaultGateway {
 export interface GitBackend {
   createWorktree(repoPath: string, branch: string, dir: string, baseBranch: string): Promise<void>;
   diff(repoPath: string, baseBranch: string, branch: string): Promise<string>;
-  merge(repoPath: string, baseBranch: string, branch: string): Promise<{ ok: boolean; conflicts: boolean; message: string }>;
   removeWorktree(repoPath: string, dir: string, opts: { force: boolean }): Promise<{ ok: boolean; reason?: string }>;
-  hasUncommittedOrUnmerged(repoPath: string, dir: string, baseBranch: string, branch: string): Promise<boolean>;
   mergeBaseIntoBranch(worktreePath: string, base: string): Promise<{ ok: boolean; conflicts: boolean; inProgress: boolean; message: string }>;
   worktreeDirty(worktreePath: string): Promise<boolean>;
   fastForwardBase(repoPath: string, base: string, branch: string): Promise<{ ok: boolean; reason?: string }>;

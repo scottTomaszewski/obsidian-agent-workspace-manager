@@ -57,26 +57,6 @@ export class RealGitBackend implements GitBackend {
     return output;
   }
 
-  async merge(repoPath: string, baseBranch: string, branch: string) {
-    const co = await run("git", ["checkout", baseBranch], { cwd: repoPath });
-    if (co.code !== 0) return { ok: false, conflicts: false, message: co.stderr };
-    const res = await run("git", ["merge", "--no-ff", branch], { cwd: repoPath });
-    const conflicts = /CONFLICT/i.test(res.stdout + res.stderr);
-    if (res.code !== 0) {
-      if (conflicts) await run("git", ["merge", "--abort"], { cwd: repoPath });
-      return { ok: false, conflicts, message: res.stdout + res.stderr };
-    }
-    return { ok: true, conflicts: false, message: res.stdout };
-  }
-
-  async hasUncommittedOrUnmerged(repoPath: string, dir: string, baseBranch: string, branch: string): Promise<boolean> {
-    const wt = this.wtPath(repoPath, dir);
-    const status = await run("git", ["status", "--porcelain"], { cwd: wt });
-    if (status.stdout.trim().length > 0) return true;
-    const unmerged = await run("git", ["log", `${baseBranch}..${branch}`, "--oneline"], { cwd: repoPath });
-    return unmerged.stdout.trim().length > 0;
-  }
-
   async removeWorktree(repoPath: string, dir: string, opts: { force: boolean }) {
     const args = ["worktree", "remove", this.wtPath(repoPath, dir)];
     if (opts.force) args.push("--force");

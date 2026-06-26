@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { Orchestrator } from "../src/core/orchestrator";
+import { CompletionCoordinator } from "../src/core/completion";
 import { FakeVault, FakeGit, FakeMux, FakeAgent, FakeNotifier } from "./fakes";
 import type { WorkspaceNote, AgentNote } from "../src/domain/types";
 
@@ -18,7 +19,8 @@ function make() {
   const notifier = new FakeNotifier();
   vault.workspaces.set("W", ws);
   vault.agents.set("vexa", agent);
-  const orch = new Orchestrator({ vault, git, mux, agent: agentBackend, notifier, vaultRoot: "/vault" });
+  const completion = new CompletionCoordinator({ vault, git, mux, notifier });
+  const orch = new Orchestrator({ vault, git, mux, agent: agentBackend, notifier, vaultRoot: "/vault", completion });
   return { vault, git, mux, agentBackend, notifier, orch };
 }
 
@@ -64,17 +66,19 @@ describe("Orchestrator.reconcileTask", () => {
     expect(t?.agentState).toBe("Idle");
   });
 
-  it("merges and removes worktree on Completed when clean", async () => {
+  it("delegates Completed to the coordinator: integrates, ff, tears down", async () => {
     const { vault, git, orch } = make();
     vault.seedTask({ path: "T.md", id: "DS-1", title: "T", status: "Running" });
-    await orch.reconcileTask("T.md");
+    await orch.reconcileTask("T.md");                 // launch -> Running
     await vault.patchTask("T.md", { status: "Completed", agentState: "NeedsReview" });
     await orch.reconcileTask("T.md");
-    expect(git.merged).toContain("oawm/ds-1-t");
-    expect(git.worktrees.has("ds-1-t")).toBe(false);
+    expect(git.integratedBase).toEqual(["main"]);
+    expect(git.fastForwarded).toEqual([{ base: "main", branch: "oawm/ds-1-t" }]);
+    expect(git.removeCalls.some((c) => c.dir === "ds-1-t")).toBe(true);
+    expect((await vault.getTask("T.md"))?.status).toBe("Completed");
   });
 
-  it("refuses worktree removal with dirty work unless confirmed", async () => {
+  it("Completed with dirty worktree + decline: no integration, stays Running", async () => {
     const { vault, git, notifier, orch } = make();
     vault.seedTask({ path: "T.md", id: "DS-1", title: "T", status: "Running" });
     await orch.reconcileTask("T.md");
@@ -82,7 +86,7 @@ describe("Orchestrator.reconcileTask", () => {
     notifier.confirmAnswer = false;
     await vault.patchTask("T.md", { status: "Completed", agentState: "NeedsReview" });
     await orch.reconcileTask("T.md");
-    expect(git.worktrees.has("ds-1-t")).toBe(true); // not removed
+    expect(git.integratedBase).toEqual([]);
   });
 
   it("repo-direct completion: kills session and idles without merge", async () => {
@@ -93,7 +97,7 @@ describe("Orchestrator.reconcileTask", () => {
     await vault.patchTask("T.md", { status: "Completed", agentState: "NeedsReview" });
     await orch.reconcileTask("T.md"); // offerMerge → no-merge finalization
     const t = await vault.getTask("T.md");
-    expect(git.merged).toHaveLength(0); // no merge for repo-direct
+    expect(git.integratedBase).toHaveLength(0); // no merge for repo-direct
     expect(await mux.isAlive("oawm-DS-1")).toBe(false);
     expect(t?.agentState).toBe("Idle");
   });
@@ -104,22 +108,8 @@ describe("Orchestrator.reconcileTask", () => {
     await orch.reconcileTask("T.md"); // launch
     await vault.patchTask("T.md", { status: "Completed", agentState: "NeedsReview" });
     await orch.reconcileTask("T.md"); // first merge
-    expect(git.merged).toHaveLength(1);
+    expect(git.integratedBase).toHaveLength(1);
     await orch.reconcileTask("T.md"); // second reconcile — idempotent guard
-    expect(git.merged).toHaveLength(1); // branch not merged a second time
-  });
-
-  it("dirty-decline: finalizes (Idle, session killed) but keeps worktree", async () => {
-    const { vault, git, mux, notifier, orch } = make();
-    vault.seedTask({ path: "T.md", id: "DS-1", title: "T", status: "Running" });
-    await orch.reconcileTask("T.md"); // launch
-    git.dirty = true;
-    notifier.confirmAnswer = false;
-    await vault.patchTask("T.md", { status: "Completed", agentState: "NeedsReview" });
-    await orch.reconcileTask("T.md"); // dirty-decline path
-    const t = await vault.getTask("T.md");
-    expect(git.worktrees.has("ds-1-t")).toBe(true); // worktree preserved
-    expect(t?.agentState).toBe("Idle");
-    expect(await mux.isAlive("oawm-DS-1")).toBe(false);
+    expect(git.integratedBase).toHaveLength(1); // branch not merged a second time
   });
 });

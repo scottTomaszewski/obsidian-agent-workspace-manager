@@ -57,14 +57,14 @@ release version:
 	token="$(just _gh-token)"
 	if [[ -n "$token" ]]; then export GH_TOKEN="$token"; fi
 
-	# Tag at the just-pushed commit and attach the assets OAWM needs: the standard
-	# Obsidian trio (main.js, manifest.json, styles.css) PLUS oawm-hook.mjs, the
-	# Claude Code hook helper that must be installed alongside the plugin.
+	# Tag at the just-pushed commit and attach the standard Obsidian plugin assets.
+	# The oawm-hook helper is written to disk by the plugin on load (embedded in
+	# main.js), so it is not a separate release asset.
 	gh release create "$version" \
 		--title "$version" \
 		--target "$(git rev-parse --abbrev-ref HEAD)" \
 		--notes "$notes" \
-		main.js manifest.json styles.css oawm-hook.mjs
+		main.js manifest.json styles.css
 
 # Echo a GitHub token for `gh`. devbox bundles its own gh (nixpkgs) that can't
 # read the host keyring where `gh auth login` stored the token, so fall back to

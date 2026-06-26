@@ -1,7 +1,7 @@
 # OAWM Manual Integration Checklist
 
 Prereqs: `git`, `zellij`, `claude` on PATH. One `CLAUDE_CONFIG_DIR` logged in (e.g. ~/.claude-accounts/vexa).
-Install: copy `main.js`, `manifest.json`, `styles.css`, `oawm-hook.mjs` into `<vault>/.obsidian/plugins/oawm/`. Enable plugin.
+Install: copy `main.js`, `manifest.json`, `styles.css` into `<vault>/.obsidian/plugins/oawm/`. Enable plugin. (The plugin writes `oawm-hook.mjs` into that folder itself on load.)
 
 1. Create `Agents/vexa.md` (type: agent, account.config_dir set), `Projects/Demo/Demo.md` (type: workspace,
    repositories pointing at a real local git repo, base_branch main), and a task note with an `oawm-task` code block.

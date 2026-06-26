@@ -1,6 +1,7 @@
 import { Plugin, TFile, Notice, WorkspaceLeaf, normalizePath, PluginSettingTab, Setting, App } from "obsidian";
 import { join } from "node:path";
-import { mkdirSync, watch as fsWatch, readFileSync } from "node:fs";
+import { mkdirSync, watch as fsWatch, readFileSync, writeFileSync } from "node:fs";
+import { HOOK_SCRIPT } from "./hookScript";
 import { ObsidianVaultGateway } from "./obsidian/vaultGateway";
 import { RealGitBackend } from "./backends/git";
 import { ZellijBackend, DEFAULT_TERMINAL_COMMAND, DEFAULT_ZELLIJ_BIN } from "./backends/zellij";
@@ -38,7 +39,14 @@ export default class OawmPlugin extends Plugin {
 
     const vaultRoot = (this.app.vault.adapter as any).getBasePath?.() ?? "";
     this.statusDir = join(vaultRoot, ".oawm", "status");
+    // Write the hook helper next to the plugin on load so it is always present
+    // and version-matched — no separate install step, self-heals a missing file.
     const hookHelperPath = join(vaultRoot, this.manifest.dir ?? "", "oawm-hook.mjs");
+    try {
+      writeFileSync(hookHelperPath, HOOK_SCRIPT);
+    } catch (e) {
+      new Notice(`OAWM: could not write hook helper (${String(e)})`);
+    }
 
     this.vault = new ObsidianVaultGateway(this.app);
     this.git = new RealGitBackend();

@@ -116,4 +116,13 @@ export class RealGitBackend implements GitBackend {
     const res = await run("git", ["status", "--porcelain"], { cwd: worktreePath });
     return parseStatus(res.stdout);
   }
+
+  async commitPaths(worktreePath: string, paths: string[], message: string): Promise<{ ok: boolean; message: string; commit?: string }> {
+    const add = await run("git", ["add", "--", ...paths], { cwd: worktreePath });
+    if (add.code !== 0) return { ok: false, message: add.stderr.trim() };
+    const res = await run("git", ["commit", "-m", message, "--", ...paths], { cwd: worktreePath });
+    if (res.code !== 0) return { ok: false, message: (res.stdout + res.stderr).trim() };
+    const sha = await run("git", ["rev-parse", "--short", "HEAD"], { cwd: worktreePath });
+    return { ok: true, message: res.stdout.trim(), commit: sha.stdout.trim() };
+  }
 }

@@ -34,6 +34,8 @@ export class FakeGit implements GitBackend {
   pushedBases: string[] = [];
   dirty = false;
   statusFiles: import("../src/core/changes").FileChange[] = [];
+  commitCalls: { worktree: string; paths: string[]; message: string }[] = [];
+  failCommitWorktrees = new Set<string>();
   conflicts = false;
   inProgress = false;
   ffOk = true;
@@ -55,6 +57,11 @@ export class FakeGit implements GitBackend {
   }
   async worktreeDirty() { return this.dirty; }
   async status() { return this.statusFiles; }
+  async commitPaths(worktree: string, paths: string[], message: string) {
+    this.commitCalls.push({ worktree, paths, message });
+    if (this.failCommitWorktrees.has(worktree)) return { ok: false, message: "commit failed" };
+    return { ok: true, message: "", commit: "abc1234" };
+  }
   async fastForwardBase(_r: string, base: string, branch: string) {
     this.fastForwarded.push({ base, branch });
     return this.ffOk ? { ok: true } : { ok: false, reason: "blocked" };

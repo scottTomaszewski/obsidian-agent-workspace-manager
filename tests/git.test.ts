@@ -159,3 +159,23 @@ describe("RealGitBackend.status", () => {
     expect(byPath["staged.txt"]).toMatchObject({ staged: true, kind: "A" });
   });
 });
+
+describe("RealGitBackend.commitPaths", () => {
+  const git3 = new RealGitBackend();
+  let repo3: string;
+  beforeEach(async () => { repo3 = await initRepo(); });
+
+  it("commits only the given paths, leaving other changes uncommitted", async () => {
+    await git3.createWorktree(repo3, "oawm/c", "c", "main");
+    const wt = join(repo3, ".oawm-worktrees", "c");
+    writeFileSync(join(wt, "keep.txt"), "in commit\n");
+    writeFileSync(join(wt, "skip.txt"), "left dirty\n");
+    const res = await git3.commitPaths(wt, ["keep.txt"], "feat: keep only");
+    expect(res.ok).toBe(true);
+    expect(res.commit).toMatch(/^[0-9a-f]{7,}$/);
+    // skip.txt is still an untracked/uncommitted change
+    const after = await git3.status(wt);
+    expect(after.map((f) => f.path)).toContain("skip.txt");
+    expect(after.map((f) => f.path)).not.toContain("keep.txt");
+  });
+});

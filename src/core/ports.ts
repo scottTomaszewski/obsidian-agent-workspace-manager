@@ -21,6 +21,7 @@ export interface GitBackend {
   pushBase(repoPath: string, base: string): Promise<{ ok: boolean; message: string }>;
   getRemoteUrl(repoPath: string): Promise<string>;
   status(worktreePath: string): Promise<FileChange[]>;
+  commitPaths(worktreePath: string, paths: string[], message: string): Promise<{ ok: boolean; message: string; commit?: string }>;
 }
 
 export interface MuxBackend {

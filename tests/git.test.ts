@@ -179,3 +179,38 @@ describe("RealGitBackend.commitPaths", () => {
     expect(after.map((f) => f.path)).not.toContain("keep.txt");
   });
 });
+
+describe("RealGitBackend review primitives", () => {
+  const git4 = new RealGitBackend();
+  let repo4: string;
+  beforeEach(async () => { repo4 = await initRepo(); });
+
+  it("branchDiffFiles lists committed changes vs base; unmergedCounts counts them", async () => {
+    await git4.createWorktree(repo4, "oawm/r", "r", "main");
+    const wt = join(repo4, ".oawm-worktrees", "r");
+    writeFileSync(join(wt, "feat.txt"), "feat\n");
+    await run("git", ["add", "."], { cwd: wt });
+    await run("git", ["commit", "-m", "feat"], { cwd: wt });
+    const files = await git4.branchDiffFiles(wt, "main");
+    expect(files.map((f) => f.path)).toContain("feat.txt");
+    const counts = await git4.unmergedCounts(wt, "main");
+    expect(counts.unmerged).toBe(1);
+    expect(counts.local).toBe(0);
+  });
+
+  it("fileDiff returns a diff for a tracked modified file (worktree scope)", async () => {
+    await git4.createWorktree(repo4, "oawm/r", "r", "main");
+    const wt = join(repo4, ".oawm-worktrees", "r");
+    writeFileSync(join(wt, "README.md"), "modified line\n");
+    const diff = await git4.fileDiff(wt, "main", "README.md", "worktree");
+    expect(diff).toContain("modified line");
+  });
+
+  it("fileDiff returns added-file content for an untracked file (worktree scope)", async () => {
+    await git4.createWorktree(repo4, "oawm/r", "r", "main");
+    const wt = join(repo4, ".oawm-worktrees", "r");
+    writeFileSync(join(wt, "fresh.txt"), "brand new\n");
+    const diff = await git4.fileDiff(wt, "main", "fresh.txt", "worktree");
+    expect(diff).toContain("brand new");
+  });
+});

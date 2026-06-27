@@ -35,6 +35,9 @@ export class FakeGit implements GitBackend {
   dirty = false;
   statusFiles: import("../src/core/changes").FileChange[] = [];
   commitCalls: { worktree: string; paths: string[]; message: string }[] = [];
+  branchFiles: import("../src/core/changes").FileChange[] = [];
+  fileDiffText = "diff --git a b\n";
+  counts: { local: number; unmerged: number } = { local: 0, unmerged: 0 };
   failCommitWorktrees = new Set<string>();
   conflicts = false;
   inProgress = false;
@@ -75,6 +78,9 @@ export class FakeGit implements GitBackend {
     return { ok: this.pushBaseOk, message: "" };
   }
   async getRemoteUrl(_r: string) { return this.remoteUrl; }
+  async branchDiffFiles() { return this.branchFiles; }
+  async fileDiff() { return this.fileDiffText; }
+  async unmergedCounts() { return this.counts; }
 }
 
 export class FakeMux implements MuxBackend {

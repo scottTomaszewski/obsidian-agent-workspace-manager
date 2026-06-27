@@ -2,7 +2,7 @@ import { join } from "node:path";
 import { existsSync, readFileSync, appendFileSync } from "node:fs";
 import type { GitBackend } from "../core/ports";
 import { run } from "./exec";
-import { parseStatus } from "../core/changes";
+import { parseStatus, parseNameStatus } from "../core/changes";
 import type { FileChange } from "../core/changes";
 
 const WT_ROOT = ".oawm-worktrees";
@@ -124,5 +124,28 @@ export class RealGitBackend implements GitBackend {
     if (res.code !== 0) return { ok: false, message: (res.stdout + res.stderr).trim() };
     const sha = await run("git", ["rev-parse", "--short", "HEAD"], { cwd: worktreePath });
     return { ok: true, message: res.stdout.trim(), commit: sha.stdout.trim() };
+  }
+
+  async branchDiffFiles(worktreePath: string, base: string): Promise<FileChange[]> {
+    const res = await run("git", ["diff", "--name-status", `${base}...HEAD`], { cwd: worktreePath });
+    return parseNameStatus(res.stdout);
+  }
+
+  async fileDiff(worktreePath: string, base: string, path: string, scope: "worktree" | "branch"): Promise<string> {
+    if (scope === "branch") {
+      return (await run("git", ["diff", `${base}...HEAD`, "--", path], { cwd: worktreePath })).stdout;
+    }
+    const tracked = (await run("git", ["ls-files", "--error-unmatch", "--", path], { cwd: worktreePath })).code === 0;
+    if (tracked) return (await run("git", ["diff", "HEAD", "--", path], { cwd: worktreePath })).stdout;
+    // Untracked: show whole-file as added (git exits 1 with --no-index when files differ).
+    return (await run("git", ["diff", "--no-index", "--", "/dev/null", path], { cwd: worktreePath })).stdout;
+  }
+
+  async unmergedCounts(worktreePath: string, base: string): Promise<{ local: number; unmerged: number }> {
+    const status = await run("git", ["status", "--porcelain"], { cwd: worktreePath });
+    const local = status.stdout.split("\n").filter((l) => l.trim().length > 0).length;
+    const rev = await run("git", ["rev-list", "--count", `${base}..HEAD`], { cwd: worktreePath });
+    const unmerged = parseInt(rev.stdout.trim(), 10) || 0;
+    return { local, unmerged };
   }
 }

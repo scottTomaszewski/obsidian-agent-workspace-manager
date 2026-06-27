@@ -22,6 +22,9 @@ export interface GitBackend {
   getRemoteUrl(repoPath: string): Promise<string>;
   status(worktreePath: string): Promise<FileChange[]>;
   commitPaths(worktreePath: string, paths: string[], message: string): Promise<{ ok: boolean; message: string; commit?: string }>;
+  branchDiffFiles(worktreePath: string, base: string): Promise<FileChange[]>;
+  fileDiff(worktreePath: string, base: string, path: string, scope: "worktree" | "branch"): Promise<string>;
+  unmergedCounts(worktreePath: string, base: string): Promise<{ local: number; unmerged: number }>;
 }
 
 export interface MuxBackend {

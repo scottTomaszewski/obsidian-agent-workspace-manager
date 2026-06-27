@@ -2,6 +2,8 @@ import { join } from "node:path";
 import { existsSync, readFileSync, appendFileSync } from "node:fs";
 import type { GitBackend } from "../core/ports";
 import { run } from "./exec";
+import { parseStatus } from "../core/changes";
+import type { FileChange } from "../core/changes";
 
 const WT_ROOT = ".oawm-worktrees";
 
@@ -108,5 +110,10 @@ export class RealGitBackend implements GitBackend {
   async getRemoteUrl(repoPath: string): Promise<string> {
     const res = await run("git", ["remote", "get-url", "origin"], { cwd: repoPath });
     return res.stdout.trim();
+  }
+
+  async status(worktreePath: string): Promise<FileChange[]> {
+    const res = await run("git", ["status", "--porcelain"], { cwd: worktreePath });
+    return parseStatus(res.stdout);
   }
 }

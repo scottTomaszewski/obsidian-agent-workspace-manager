@@ -1,4 +1,5 @@
 import type { TaskNote, WorkspaceNote, AgentNote } from "../domain/types";
+import type { FileChange } from "./changes";
 
 export interface VaultGateway {
   listTasks(): Promise<TaskNote[]>;
@@ -19,6 +20,7 @@ export interface GitBackend {
   pushBranch(repoPath: string, branch: string, opts?: { mrTarget?: string }): Promise<{ ok: boolean; message: string }>;
   pushBase(repoPath: string, base: string): Promise<{ ok: boolean; message: string }>;
   getRemoteUrl(repoPath: string): Promise<string>;
+  status(worktreePath: string): Promise<FileChange[]>;
 }
 
 export interface MuxBackend {

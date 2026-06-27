@@ -139,3 +139,23 @@ describe("RealGitBackend completion primitives", () => {
     expect(refs.stdout).toContain("oawm/x");
   });
 });
+
+describe("RealGitBackend.status", () => {
+  const git2 = new RealGitBackend();
+  let repo2: string;
+  beforeEach(async () => { repo2 = await initRepo(); });
+
+  it("reports staged, unstaged, and untracked files", async () => {
+    await git2.createWorktree(repo2, "oawm/s", "s", "main");
+    const wt = join(repo2, ".oawm-worktrees", "s");
+    writeFileSync(join(wt, "README.md"), "changed\n");      // unstaged modify
+    writeFileSync(join(wt, "brand.txt"), "new\n");          // untracked
+    writeFileSync(join(wt, "staged.txt"), "s\n");
+    await run("git", ["add", "staged.txt"], { cwd: wt });   // staged add
+    const files = await git2.status(wt);
+    const byPath = Object.fromEntries(files.map((f) => [f.path, f]));
+    expect(byPath["README.md"]).toMatchObject({ staged: false, kind: "M" });
+    expect(byPath["brand.txt"]).toMatchObject({ staged: false, kind: "?" });
+    expect(byPath["staged.txt"]).toMatchObject({ staged: true, kind: "A" });
+  });
+});

@@ -33,6 +33,7 @@ export class FakeGit implements GitBackend {
   pushedBranches: { branch: string; mrTarget?: string }[] = [];
   pushedBases: string[] = [];
   dirty = false;
+  statusFiles: import("../src/core/changes").FileChange[] = [];
   conflicts = false;
   inProgress = false;
   ffOk = true;
@@ -53,6 +54,7 @@ export class FakeGit implements GitBackend {
     return { ok: !this.conflicts && !this.inProgress, conflicts: this.conflicts, inProgress: this.inProgress, message: "" };
   }
   async worktreeDirty() { return this.dirty; }
+  async status() { return this.statusFiles; }
   async fastForwardBase(_r: string, base: string, branch: string) {
     this.fastForwarded.push({ base, branch });
     return this.ffOk ? { ok: true } : { ok: false, reason: "blocked" };

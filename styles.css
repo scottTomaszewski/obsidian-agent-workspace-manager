@@ -8,6 +8,11 @@
 .oawm-dash-row { padding: 2px 0; }
 .oawm-dash-agent { color: var(--text-muted); font-size: 12px; }
 .oawm-diff { font-family: var(--font-monospace); font-size: 12px; white-space: pre; overflow-x: auto; }
+.oawm-diff.oawm-diff-wrap { white-space: pre-wrap; word-break: break-word; overflow-x: hidden; }
+.oawm-diff-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0 8px; }
+.oawm-diff-tbgroup { display: inline-flex; gap: 2px; }
+.oawm-diff-tbbtn { padding: 2px 8px; font-size: 12px; }
+.oawm-diff-tbbtn.oawm-tb-active { font-weight: 700; background: var(--interactive-accent); color: var(--text-on-accent); }
 .oawm-diff-add { color: var(--color-green); }
 .oawm-diff-del { color: var(--color-red); }
 .oawm-diff-meta { color: var(--text-muted); }

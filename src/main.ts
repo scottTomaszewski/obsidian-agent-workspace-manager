@@ -12,7 +12,7 @@ import { CommitCoordinator } from "./core/commit";
 import { StatusIngest } from "./core/statusIngest";
 import { registerTaskCodeBlock, ActionId } from "./obsidian/taskCodeBlock";
 import { DashboardView, DASHBOARD_VIEW_TYPE } from "./obsidian/dashboardView";
-import { DiffView, DIFF_VIEW_TYPE, openDiffLeaf } from "./obsidian/diffView";
+import { DiffView, DIFF_VIEW_TYPE, openDiffLeaf, DiffPrefsGateway } from "./obsidian/diffView";
 import { ChangesView, CHANGES_VIEW_TYPE } from "./obsidian/changesView";
 import { buildEditorCommand } from "./core/editorOpen";
 import { resolveTaskWorktrees } from "./core/worktrees";
@@ -22,6 +22,8 @@ interface OawmSettings {
   terminalCommand: string;
   zellijPath: string;
   diffTarget: "popout" | "split";
+  diffLayout: "unified" | "sideBySide";
+  diffWrap: boolean;
   editorStrategy: "mux" | "external";
   editorCommand: string;
 }
@@ -30,6 +32,8 @@ const DEFAULT_SETTINGS: OawmSettings = {
   terminalCommand: DEFAULT_TERMINAL_COMMAND,
   zellijPath: DEFAULT_ZELLIJ_BIN,
   diffTarget: "popout",
+  diffLayout: "sideBySide",
+  diffWrap: false,
   editorStrategy: "mux",
   editorCommand: "nvim +{line} {file}",
 };
@@ -81,7 +85,15 @@ export default class OawmPlugin extends Plugin {
     // Dashboard view
     this.registerView(DASHBOARD_VIEW_TYPE, (leaf: WorkspaceLeaf) =>
       new DashboardView(leaf, this.vault, (path) => this.openTask(path), (path) => this.activateChanges(path)));
-    this.registerView(DIFF_VIEW_TYPE, (leaf: WorkspaceLeaf) => new DiffView(leaf));
+    const diffPrefs: DiffPrefsGateway = {
+      get: () => ({ layout: this.settings.diffLayout, wrap: this.settings.diffWrap }),
+      set: async (p) => {
+        this.settings.diffLayout = p.layout;
+        this.settings.diffWrap = p.wrap;
+        await this.saveData(this.settings);
+      },
+    };
+    this.registerView(DIFF_VIEW_TYPE, (leaf: WorkspaceLeaf) => new DiffView(leaf, diffPrefs));
     this.registerView(CHANGES_VIEW_TYPE, (leaf: WorkspaceLeaf) =>
       new ChangesView(leaf, {
         vault: this.vault, git: this.git, completion: this.completion, commit,

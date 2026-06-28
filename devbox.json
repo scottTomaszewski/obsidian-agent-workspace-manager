@@ -5,6 +5,8 @@
     "init_hook": [
       "echo 'node $(node --version) via devbox'"
     ],
-    "scripts": {}
+    "scripts": {
+      "release": "just release $@"
+    }
   }
 }

@@ -12,7 +12,7 @@ import { CommitCoordinator } from "./core/commit";
 import { StatusIngest } from "./core/statusIngest";
 import { registerTaskCodeBlock, ActionId } from "./obsidian/taskCodeBlock";
 import { DashboardView, DASHBOARD_VIEW_TYPE } from "./obsidian/dashboardView";
-import { DiffView, DIFF_VIEW_TYPE, openDiffLeaf, DiffPrefsGateway } from "./obsidian/diffView";
+import { DiffView, DIFF_VIEW_TYPE, openDiffLeaf, DiffPrefsGateway, DiffTarget } from "./obsidian/diffView";
 import { ChangesView, CHANGES_VIEW_TYPE } from "./obsidian/changesView";
 import { buildEditorCommand } from "./core/editorOpen";
 import { resolveTaskWorktrees } from "./core/worktrees";
@@ -21,7 +21,7 @@ import type { TaskNote } from "./domain/types";
 interface OawmSettings {
   terminalCommand: string;
   zellijPath: string;
-  diffTarget: "popout" | "split";
+  diffTarget: DiffTarget;
   diffLayout: "unified" | "sideBySide";
   diffWrap: boolean;
   editorStrategy: "mux" | "external";
@@ -266,11 +266,11 @@ class OawmSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Diff window")
-      .setDesc("Where file diffs open. \"Popout\" opens a separate window so you can read a diff while referencing code in the main window; \"Split\" opens in the main editor area.")
+      .setDesc("Where file diffs open. \"Popout\" opens a separate window so you can read a diff while referencing code in the main window; \"Split\" opens in the main editor area; \"New tab\" opens a tab alongside your notes.")
       .addDropdown((d) =>
-        d.addOption("popout", "Popout window").addOption("split", "Main split")
+        d.addOption("popout", "Popout window").addOption("split", "Main split").addOption("tab", "New tab")
           .setValue(this.plugin.settings.diffTarget)
-          .onChange(async (v) => { this.plugin.settings.diffTarget = v as "popout" | "split"; await this.plugin.saveData(this.plugin.settings); }));
+          .onChange(async (v) => { this.plugin.settings.diffTarget = v as DiffTarget; await this.plugin.saveData(this.plugin.settings); }));
 
     new Setting(containerEl)
       .setName("Editor open strategy")

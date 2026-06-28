@@ -119,10 +119,14 @@ export class DiffView extends ItemView {
   }
 }
 
-/** Open (or reuse) a single diff leaf in a popout window or a main-area split. */
-export async function openDiffLeaf(app: App, target: "popout" | "split", state: DiffViewState): Promise<void> {
+export type DiffTarget = "popout" | "split" | "tab";
+
+/** Open (or reuse) a single diff leaf in a popout window, a main-area split, or a new tab. */
+export async function openDiffLeaf(app: App, target: DiffTarget, state: DiffViewState): Promise<void> {
   const existing = app.workspace.getLeavesOfType(DIFF_VIEW_TYPE);
-  const leaf = existing[0] ?? (target === "popout" ? app.workspace.openPopoutLeaf() : app.workspace.getLeaf("split"));
+  const newLeaf = () =>
+    target === "popout" ? app.workspace.openPopoutLeaf() : app.workspace.getLeaf(target === "tab" ? "tab" : "split");
+  const leaf = existing[0] ?? newLeaf();
   await leaf.setViewState({ type: DIFF_VIEW_TYPE, active: true });
   const view = leaf.view;
   if (view instanceof DiffView) view.setDiff(state);

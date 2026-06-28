@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file. The
 "Unreleased" section is promoted to a version heading by `just release`, and its
 body becomes that release's GitHub notes.
 
+## Unreleased
+
+- The **"Diff window"** setting gained a **New tab** option — open diffs in a tab alongside
+  your notes, in addition to the existing popout window and main split.
+
 ## 0.0.14
 
 - Add a task-scoped **Changes panel** (command: "Open Task Changes panel", plus a

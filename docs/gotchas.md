@@ -101,22 +101,32 @@ deliberate:
   same grid row track, so when a long line wraps to N lines both sides grow to the same
   height and stay aligned. Text columns are `minmax(0,1fr)` + cells `min-width: 0` so they
   wrap at ~50% instead of overflowing.
-- **Wrap OFF** → two panes (`.oawm-diff-sxs-panes` → `.oawm-diff-pane` × 2), each its own
-  `overflow-x: auto` scroller, so a whole side scrolls horizontally **as one unit** rather
-  than each line being its own scroll block. This only stays row-aligned because every row
-  is exactly one line tall: the two panes get the same number of equal-height rows (meta
+- **Wrap OFF** → two panes (`.oawm-diff-sxs-panes` flex row → `.oawm-diff-pane` × 2), each
+  its own `overflow: auto` scroller, so a whole side scrolls horizontally **as one unit**
+  rather than each line being its own scroll block. This only stays row-aligned because every
+  row is exactly one line tall: the two panes get the same number of equal-height rows (meta
   rows and null/empty cells included), so row *i* lines up across panes by position. Line
   numbers are `position: sticky; left: 0` so they stay visible while the pane scrolls.
+  Because each pane scrolls vertically on its own, `DiffView.syncVerticalScroll` mirrors the
+  two panes' `scrollTop` (horizontal stays independent) so the sides don't drift apart; a
+  value-equality guard stops the scroll-event ping-pong.
 
 You can't get both behaviors from a single grid: a grid gives shared row heights (needed for
 wrap) but can't make a subset of columns scroll together (needed for per-side scroll). Hence
 the two renderers. See `styles.css`.
 
-**Horizontal scrollbars need explicit width constraints** — two non-obvious bits in
+**The content area is bounded-height and scrolls *inside* itself**, not by growing the leaf.
+`.view-content` for `data-type="oawm-diff"` is forced to `display: flex; flex-direction:
+column; overflow: hidden`, the body/`<pre>`/panes are `flex: 1 1 auto; min-height: 0`, and the
+scrollers carry `overflow: auto`. Without this the horizontal scrollbar lives at the bottom of
+a full-height diff and you must page-scroll down to reach it; with it, the toolbar and the
+horizontal scrollbars stay pinned to the viewport.
+
+**Horizontal scrollbars also need explicit width constraints** — two more non-obvious bits in
 `styles.css` without which the scrollbar silently never appears:
-- `.oawm-diff-pane` needs `min-width: 0`. It's a `1fr` grid item, and grid items default to
-  `min-width: auto` (won't shrink below content), so the track would grow to the widest line
-  and the grid overflows (clipped) instead of the pane scrolling at 50%.
+- `.oawm-diff-pane` needs `min-width: 0` (and `min-height: 0`). It's a flex item, and flex
+  items default to `min-width: auto` (won't shrink below content), so the pane would grow to
+  the widest line and overflow the viewport instead of scrolling at 50%.
 - The no-wrap unified `<pre>`'s line `<div>`s get `width: max-content` (scoped to
   `:not(.oawm-diff-wrap)`). Block children otherwise stay `<pre>`-width and their inline
   overflow doesn't reliably extend the `<pre>`'s scroll width, so no scrollbar. (Scoped away

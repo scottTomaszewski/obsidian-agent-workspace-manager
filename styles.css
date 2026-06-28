@@ -7,7 +7,15 @@
 .oawm-Failed { background: var(--color-red); color: white; }
 .oawm-dash-row { padding: 2px 0; }
 .oawm-dash-agent { color: var(--text-muted); font-size: 12px; }
-.oawm-diff { font-family: var(--font-monospace); font-size: 12px; white-space: pre; overflow-x: auto; }
+/* The diff content fills the leaf and scrolls *inside* a bounded height, so the toolbar
+   and the horizontal scrollbars stay pinned to the viewport instead of sitting at the
+   bottom of a tall, page-scrolled diff. Scoped to our view's content area. */
+.workspace-leaf-content[data-type="oawm-diff"] .view-content {
+  display: flex; flex-direction: column; overflow: hidden; }
+.oawm-diff-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+
+.oawm-diff { font-family: var(--font-monospace); font-size: 12px; white-space: pre;
+  flex: 1 1 auto; min-height: 0; overflow: auto; margin: 0; }
 .oawm-diff.oawm-diff-wrap { white-space: pre-wrap; word-break: break-word; overflow-x: hidden; }
 /* No-wrap unified: size each line to its content so the <pre> reports a scrollable
    overflow (block children would otherwise stay pre-width and never trigger the bar). */
@@ -48,19 +56,21 @@
 .oawm-diff-cell.oawm-diff-del { background: rgba(255, 0, 0, 0.10); color: var(--color-red); }
 .oawm-diff-meta-row { color: var(--text-muted); white-space: pre; margin-top: 4px; }
 
-/* Wrap ON: aligned grid */
+/* Wrap ON: aligned grid (fills the bounded height, scrolls vertically inside) */
 .oawm-diff-sxs { display: grid; grid-template-columns: auto minmax(0,1fr) auto minmax(0,1fr);
-  column-gap: 8px; font-family: var(--font-monospace); font-size: 12px; }
+  column-gap: 8px; font-family: var(--font-monospace); font-size: 12px;
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; align-content: start; }
 .oawm-diff-sxs .oawm-diff-cell { white-space: pre-wrap; word-break: break-word; min-width: 0; }
 .oawm-diff-sxs .oawm-diff-meta-row { grid-column: 1 / -1; }
 
-/* Wrap OFF: two independently-scrolling panes */
-.oawm-diff-sxs-panes { display: grid; grid-template-columns: 1fr 1fr; column-gap: 8px;
+/* Wrap OFF: two panes side by side, each its own scroller filling the bounded height, so
+   the horizontal scrollbar stays pinned at the viewport bottom. Vertical scroll is synced
+   between the panes in JS (syncVerticalScroll) so rows stay aligned. */
+.oawm-diff-sxs-panes { display: flex; gap: 8px; flex: 1 1 auto; min-height: 0;
   font-family: var(--font-monospace); font-size: 12px; }
-/* min-width:0 is load-bearing: without it the grid item defaults to min-width:auto,
-   the 1fr track grows to the widest line, and the grid overflows (clipped, no scrollbar)
-   instead of the pane scrolling at 50%. */
-.oawm-diff-pane { overflow-x: auto; min-width: 0; }
+/* flex:1 1 0 → equal 50% panes; min-width/min-height:0 let a pane shrink below its content
+   so overflow:auto actually scrolls instead of the flex item growing past the viewport. */
+.oawm-diff-pane { flex: 1 1 0; min-width: 0; min-height: 0; overflow: auto; }
 .oawm-diff-srow { display: flex; width: max-content; min-width: 100%; }
 .oawm-diff-srow .oawm-diff-cell { flex: 1 0 auto; }
 .oawm-diff-pane .oawm-diff-num { position: sticky; left: 0; flex: 0 0 auto;

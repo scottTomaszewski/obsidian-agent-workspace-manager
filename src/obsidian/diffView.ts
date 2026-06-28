@@ -93,6 +93,17 @@ export class DiffView extends ItemView {
       this.appendCell(left.createDiv({ cls: "oawm-diff-srow" }), row.left);
       this.appendCell(right.createDiv({ cls: "oawm-diff-srow" }), row.right);
     }
+    this.syncVerticalScroll(left, right);
+  }
+
+  // Each pane scrolls horizontally on its own, but their vertical scroll is mirrored so
+  // a row stays at the same height on both sides. The value-equality guard stops the
+  // ping-pong: once both scrollTops match, neither listener writes again.
+  private syncVerticalScroll(a: HTMLElement, b: HTMLElement) {
+    const link = (from: HTMLElement, to: HTMLElement) =>
+      from.addEventListener("scroll", () => { if (to.scrollTop !== from.scrollTop) to.scrollTop = from.scrollTop; });
+    link(a, b);
+    link(b, a);
   }
 
   // Append a line-number gutter + a text cell for one side into `parent`

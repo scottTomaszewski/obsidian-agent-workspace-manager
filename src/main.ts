@@ -6,6 +6,7 @@ import { ObsidianVaultGateway } from "./obsidian/vaultGateway";
 import { RealGitBackend } from "./backends/git";
 import { ZellijBackend, DEFAULT_TERMINAL_COMMAND, DEFAULT_ZELLIJ_BIN } from "./backends/zellij";
 import { SpawnTerminalLauncher } from "./backends/terminal";
+import { EmbeddedTerminalLauncher } from "./obsidian/embeddedTerminal";
 import { ClaudeBackend } from "./backends/claude";
 import { Orchestrator } from "./core/orchestrator";
 import { CompletionCoordinator } from "./core/completion";
@@ -22,6 +23,7 @@ import { resolveTaskWorktrees } from "./core/worktrees";
 import type { TaskNote } from "./domain/types";
 
 interface OawmSettings {
+  terminalHost: "embedded" | "external";
   terminalCommand: string;
   zellijPath: string;
   diffTarget: DiffTarget;
@@ -32,6 +34,7 @@ interface OawmSettings {
 }
 
 const DEFAULT_SETTINGS: OawmSettings = {
+  terminalHost: "embedded",
   terminalCommand: DEFAULT_TERMINAL_COMMAND,
   zellijPath: DEFAULT_ZELLIJ_BIN,
   diffTarget: "popout",
@@ -71,7 +74,9 @@ export default class OawmPlugin extends Plugin {
 
     this.vault = new ObsidianVaultGateway(this.app);
     this.git = new RealGitBackend();
-    const launcher = new SpawnTerminalLauncher(this.settings.terminalCommand || DEFAULT_TERMINAL_COMMAND);
+    const launcher = this.settings.terminalHost === "embedded"
+      ? new EmbeddedTerminalLauncher(this.app)
+      : new SpawnTerminalLauncher(this.settings.terminalCommand || DEFAULT_TERMINAL_COMMAND);
     this.mux = new ZellijBackend(launcher, this.settings.zellijPath);
     this.pty = new NodePtyHost();
     const notifier = { notice: (m: string) => new Notice(`OAWM: ${m}`), confirm: async (m: string) => confirm(m) };
@@ -237,6 +242,14 @@ class OawmSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
+    new Setting(containerEl)
+      .setName("Terminal host")
+      .setDesc("Where agent terminals open. \"Embedded\" runs them inside Obsidian; \"External window\" spawns a terminal emulator. Takes effect on the next plugin reload.")
+      .addDropdown((d) =>
+        d.addOption("embedded", "Embedded").addOption("external", "External window")
+          .setValue(this.plugin.settings.terminalHost)
+          .onChange(async (v) => { this.plugin.settings.terminalHost = v as "embedded" | "external"; await this.plugin.saveData(this.plugin.settings); }));
+
     new Setting(containerEl)
       .setName("Terminal command")
       .setDesc(

@@ -93,10 +93,21 @@ Line numbers seed from the `@@ -old +new @@` header. Two non-obvious skips: line
 with `\` (the "No newline at end of file" marker) and a trailing empty string from
 `split("\n")` are dropped so they don't create phantom rows or mis-number columns.
 
-The side-by-side grid's two text columns are `minmax(0,1fr)` so each pane always gets half
-the viewport regardless of content (the line-number gutters are `auto`). Long lines are
-handled *per cell*, not by overflowing the whole grid: with Wrap off a cell is `white-space:
-pre; overflow-x: auto` (the long line scrolls inside its own 50% pane); the `.oawm-diff-wrap`
-class flips cells to `pre-wrap` instead. `min-width: 0` on `.oawm-diff-cell` is required —
-without it a grid item's default `min-width: auto` would let a long line blow the column past
-50% and push the right pane off-screen (the original bug). See `styles.css`.
+Side-by-side has **two different DOM layouts** picked by the Wrap pref (`renderSxsGrid` vs
+`renderSxsPanes` in `diffView.ts`) — not one structure with a CSS toggle. This split is
+deliberate:
+
+- **Wrap ON** → one 4-column CSS grid (`.oawm-diff-sxs`). A row's left+right cells share the
+  same grid row track, so when a long line wraps to N lines both sides grow to the same
+  height and stay aligned. Text columns are `minmax(0,1fr)` + cells `min-width: 0` so they
+  wrap at ~50% instead of overflowing.
+- **Wrap OFF** → two panes (`.oawm-diff-sxs-panes` → `.oawm-diff-pane` × 2), each its own
+  `overflow-x: auto` scroller, so a whole side scrolls horizontally **as one unit** rather
+  than each line being its own scroll block. This only stays row-aligned because every row
+  is exactly one line tall: the two panes get the same number of equal-height rows (meta
+  rows and null/empty cells included), so row *i* lines up across panes by position. Line
+  numbers are `position: sticky; left: 0` so they stay visible while the pane scrolls.
+
+You can't get both behaviors from a single grid: a grid gives shared row heights (needed for
+wrap) but can't make a subset of columns scroll together (needed for per-side scroll). Hence
+the two renderers. See `styles.css`.

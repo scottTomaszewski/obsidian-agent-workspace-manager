@@ -1,5 +1,5 @@
 import { ItemView, WorkspaceLeaf, App } from "obsidian";
-import { splitDiffLines, buildSideBySide, SideCell } from "./diffPanel";
+import { splitDiffLines, buildSideBySide, SideCell, SideRow } from "./diffPanel";
 
 export const DIFF_VIEW_TYPE = "oawm-diff";
 
@@ -59,24 +59,52 @@ export class DiffView extends ItemView {
   }
 
   private renderSideBySide(body: HTMLElement) {
-    const grid = body.createDiv({ cls: "oawm-diff-sxs" + (this.prefs.wrap ? " oawm-diff-wrap" : "") });
     const rows = buildSideBySide(this.state.diff || "");
+    if (this.prefs.wrap) this.renderSxsGrid(body, rows);
+    else this.renderSxsPanes(body, rows);
+  }
+
+  // Wrap on: a single 4-column grid so each row's left/right cells share one row
+  // track — wrapped lines stay vertically aligned. No horizontal scroll (lines wrap).
+  private renderSxsGrid(body: HTMLElement, rows: SideRow[]) {
+    const grid = body.createDiv({ cls: "oawm-diff-sxs" });
     if (rows.length === 0) { grid.createDiv({ cls: "oawm-diff-meta-row", text: "(no changes)" }); return; }
     for (const row of rows) {
       if (row.type === "meta") { grid.createDiv({ cls: "oawm-diff-meta-row", text: row.text || " " }); continue; }
-      this.renderCell(grid, row.left);
-      this.renderCell(grid, row.right);
+      this.appendCell(grid, row.left);
+      this.appendCell(grid, row.right);
     }
   }
 
-  private renderCell(grid: HTMLElement, cell: SideCell | null) {
+  // Wrap off: two panes, each its own horizontal scroller, so a whole side scrolls
+  // as one unit (not per line). Every row is one line tall, so left/right align by
+  // having the same number of equal-height rows.
+  private renderSxsPanes(body: HTMLElement, rows: SideRow[]) {
+    const panes = body.createDiv({ cls: "oawm-diff-sxs-panes" });
+    const left = panes.createDiv({ cls: "oawm-diff-pane" });
+    const right = panes.createDiv({ cls: "oawm-diff-pane" });
+    if (rows.length === 0) { left.createDiv({ cls: "oawm-diff-meta-row", text: "(no changes)" }); return; }
+    for (const row of rows) {
+      if (row.type === "meta") {
+        left.createDiv({ cls: "oawm-diff-meta-row", text: row.text || " " });
+        right.createDiv({ cls: "oawm-diff-meta-row", text: " " });
+        continue;
+      }
+      this.appendCell(left.createDiv({ cls: "oawm-diff-srow" }), row.left);
+      this.appendCell(right.createDiv({ cls: "oawm-diff-srow" }), row.right);
+    }
+  }
+
+  // Append a line-number gutter + a text cell for one side into `parent`
+  // (a grid container in wrap mode, a row div in pane mode).
+  private appendCell(parent: HTMLElement, cell: SideCell | null) {
     if (!cell) {
-      grid.createDiv({ cls: "oawm-diff-num" });
-      grid.createDiv({ cls: "oawm-diff-cell oawm-diff-empty" });
+      parent.createSpan({ cls: "oawm-diff-num" });
+      parent.createSpan({ cls: "oawm-diff-cell oawm-diff-empty", text: " " });
       return;
     }
-    grid.createDiv({ cls: "oawm-diff-num", text: String(cell.lineNo) });
-    grid.createDiv({ cls: `oawm-diff-cell oawm-diff-${cell.kind}`, text: cell.text || " " });
+    parent.createSpan({ cls: "oawm-diff-num", text: String(cell.lineNo) });
+    parent.createSpan({ cls: `oawm-diff-cell oawm-diff-${cell.kind}`, text: cell.text || " " });
   }
 }
 

@@ -32,15 +32,30 @@
 .oawm-badge-D { color: var(--color-red); } .oawm-badge-R { color: var(--color-blue); }
 .oawm-badge-\? { opacity: 0.6; }
 .oawm-pen { opacity: 0.6; }
-/* Side-by-side diff: [old# | old text | new# | new text]. The two text columns are
-   minmax(0,1fr), so each pane always gets half the viewport (gutters are auto-sized);
-   min-width:0 lets a cell shrink below its content. When Wrap is off a long line scrolls
-   inside its own pane (per-cell overflow-x); when Wrap is on it soft-wraps instead. */
-.oawm-diff-sxs { display: grid; grid-template-columns: auto minmax(0,1fr) auto minmax(0,1fr);
-  column-gap: 8px; font-family: var(--font-monospace); font-size: 12px; }
+/* Side-by-side diff has two layouts (DiffView picks by the Wrap pref):
+   - Wrap ON  → .oawm-diff-sxs: one 4-col grid [old# | old text | new# | new text].
+     Left+right of a row share a grid row track, so wrapped lines stay aligned. No
+     horizontal scroll (minmax(0,1fr) text columns + min-width:0 let cells wrap at 50%).
+   - Wrap OFF → .oawm-diff-sxs-panes: two panes, each its OWN horizontal scroller, so a
+     whole side scrolls as a single unit (not per line). Rows are one line tall, so the
+     two equal-count panes align row-for-row. Line numbers are sticky so they stay put. */
 .oawm-diff-num { text-align: right; color: var(--text-muted); user-select: none; padding: 0 4px; }
-.oawm-diff-cell { white-space: pre; overflow-x: auto; min-width: 0; }
-.oawm-diff-sxs.oawm-diff-wrap .oawm-diff-cell { white-space: pre-wrap; word-break: break-word; overflow-x: visible; }
+.oawm-diff-cell { white-space: pre; }
 .oawm-diff-cell.oawm-diff-add { background: rgba(0, 200, 83, 0.10); color: var(--color-green); }
 .oawm-diff-cell.oawm-diff-del { background: rgba(255, 0, 0, 0.10); color: var(--color-red); }
-.oawm-diff-meta-row { grid-column: 1 / -1; color: var(--text-muted); white-space: pre; margin-top: 4px; }
+.oawm-diff-meta-row { color: var(--text-muted); white-space: pre; margin-top: 4px; }
+
+/* Wrap ON: aligned grid */
+.oawm-diff-sxs { display: grid; grid-template-columns: auto minmax(0,1fr) auto minmax(0,1fr);
+  column-gap: 8px; font-family: var(--font-monospace); font-size: 12px; }
+.oawm-diff-sxs .oawm-diff-cell { white-space: pre-wrap; word-break: break-word; min-width: 0; }
+.oawm-diff-sxs .oawm-diff-meta-row { grid-column: 1 / -1; }
+
+/* Wrap OFF: two independently-scrolling panes */
+.oawm-diff-sxs-panes { display: grid; grid-template-columns: 1fr 1fr; column-gap: 8px;
+  font-family: var(--font-monospace); font-size: 12px; }
+.oawm-diff-pane { overflow-x: auto; }
+.oawm-diff-srow { display: flex; width: max-content; min-width: 100%; }
+.oawm-diff-srow .oawm-diff-cell { flex: 1 0 auto; }
+.oawm-diff-pane .oawm-diff-num { position: sticky; left: 0; flex: 0 0 auto;
+  background: var(--background-primary); }

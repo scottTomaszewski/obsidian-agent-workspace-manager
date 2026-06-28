@@ -34,6 +34,11 @@ export class TerminalView extends ItemView {
   }
 
   private render() {
+    this.pty?.kill();
+    this.term?.dispose();
+    this.pty = undefined;
+    this.term = undefined;
+    this.fit = undefined;
     if (!this.state) return;
     const el = this.contentEl;
     el.empty();

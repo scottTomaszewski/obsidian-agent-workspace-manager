@@ -93,7 +93,10 @@ Line numbers seed from the `@@ -old +new @@` header. Two non-obvious skips: line
 with `\` (the "No newline at end of file" marker) and a trailing empty string from
 `split("\n")` are dropped so they don't create phantom rows or mis-number columns.
 
-The side-by-side grid uses **two** `grid-template-columns` sets on purpose: `max-content`
-text columns (so the grid overflows and the container scrolls horizontally when Wrap is off)
-vs. `minmax(0,1fr)` columns (so cells can `pre-wrap` when Wrap is on). The `.oawm-diff-wrap`
-class on the container switches between them — see `styles.css`.
+The side-by-side grid's two text columns are `minmax(0,1fr)` so each pane always gets half
+the viewport regardless of content (the line-number gutters are `auto`). Long lines are
+handled *per cell*, not by overflowing the whole grid: with Wrap off a cell is `white-space:
+pre; overflow-x: auto` (the long line scrolls inside its own 50% pane); the `.oawm-diff-wrap`
+class flips cells to `pre-wrap` instead. `min-width: 0` on `.oawm-diff-cell` is required —
+without it a grid item's default `min-width: auto` would let a long line blow the column past
+50% and push the right pane off-screen (the original bug). See `styles.css`.

@@ -66,4 +66,29 @@ describe("buildSideBySide", () => {
       right: { lineNo: 2, text: "b", kind: "add" },
     });
   });
+
+  it("flushes a pending change run at a hunk boundary (multi-hunk)", () => {
+    // First hunk ends on a +/- change with no trailing context, immediately
+    // followed by the next @@ — the change must flush before the new meta row,
+    // and line numbers must re-seed from each hunk header.
+    const rows = buildSideBySide([
+      "@@ -1,1 +1,1 @@",
+      "-a",
+      "+A",
+      "@@ -10,1 +10,1 @@",
+      "-x",
+      "+y",
+    ].join("\n"));
+    expect(rows.map((r) => r.type)).toEqual(["meta", "line", "meta", "line"]);
+    expect(rows[1]).toEqual({
+      type: "line",
+      left: { lineNo: 1, text: "a", kind: "del" },
+      right: { lineNo: 1, text: "A", kind: "add" },
+    });
+    expect(rows[3]).toEqual({
+      type: "line",
+      left: { lineNo: 10, text: "x", kind: "del" },
+      right: { lineNo: 10, text: "y", kind: "add" },
+    });
+  });
 });

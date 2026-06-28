@@ -41,8 +41,8 @@ export class DiffView extends ItemView {
     const layout = bar.createDiv({ cls: "oawm-diff-tbgroup" });
     this.tbButton(layout, "Unified", this.prefs.layout === "unified", () => this.setLayout("unified"));
     this.tbButton(layout, "Side-by-side", this.prefs.layout === "sideBySide", () => this.setLayout("sideBySide"));
-    const view = bar.createDiv({ cls: "oawm-diff-tbgroup" });
-    this.tbButton(view, "Wrap", this.prefs.wrap, () => this.setWrap(!this.prefs.wrap));
+    const wrap = bar.createDiv({ cls: "oawm-diff-tbgroup" });
+    this.tbButton(wrap, "Wrap", this.prefs.wrap, () => this.setWrap(!this.prefs.wrap));
   }
 
   private tbButton(group: HTMLElement, label: string, active: boolean, onClick: () => void) {

@@ -11,17 +11,19 @@ import { CompletionCoordinator } from "./core/completion";
 import { StatusIngest } from "./core/statusIngest";
 import { registerTaskCodeBlock, ActionId } from "./obsidian/taskCodeBlock";
 import { DashboardView, DASHBOARD_VIEW_TYPE } from "./obsidian/dashboardView";
-import { DiffModal } from "./obsidian/diffPanel";
+import { DiffView, DIFF_VIEW_TYPE, openDiffLeaf } from "./obsidian/diffView";
 import type { TaskNote } from "./domain/types";
 
 interface OawmSettings {
   terminalCommand: string;
   zellijPath: string;
+  diffTarget: "popout" | "split";
 }
 
 const DEFAULT_SETTINGS: OawmSettings = {
   terminalCommand: DEFAULT_TERMINAL_COMMAND,
   zellijPath: DEFAULT_ZELLIJ_BIN,
+  diffTarget: "popout",
 };
 
 export default class OawmPlugin extends Plugin {
@@ -70,6 +72,7 @@ export default class OawmPlugin extends Plugin {
     // Dashboard view
     this.registerView(DASHBOARD_VIEW_TYPE, (leaf: WorkspaceLeaf) =>
       new DashboardView(leaf, this.vault, (path) => this.openTask(path)));
+    this.registerView(DIFF_VIEW_TYPE, (leaf: WorkspaceLeaf) => new DiffView(leaf));
     this.addRibbonIcon("bot", "Agent Workspace", () => this.activateDashboard());
     this.addCommand({ id: "open-dashboard", name: "Open Agent Workspace", callback: () => this.activateDashboard() });
     this.addCommand({
@@ -155,7 +158,7 @@ export default class OawmPlugin extends Plugin {
     if (!ws || !task.branch) { new Notice("OAWM: no branch to diff"); return; }
     const repo = ws.repositories.find((r) => r.name === task.repositories[0]) ?? ws.repositories[0];
     const diff = await this.git.diff(repo.path, ws.baseBranch, task.branch);
-    new DiffModal(this.app, `${task.id} diff`, diff || "(no changes)").open();
+    await openDiffLeaf(this.app, this.settings.diffTarget, { title: `${task.id} diff`, diff });
   }
 
   private async openTask(path: string) {
@@ -213,5 +216,13 @@ class OawmSettingTab extends PluginSettingTab {
             await this.plugin.saveData(this.plugin.settings);
           }),
       );
+
+    new Setting(containerEl)
+      .setName("Diff window")
+      .setDesc("Where file diffs open. \"Popout\" opens a separate window so you can read a diff while referencing code in the main window; \"Split\" opens in the main editor area.")
+      .addDropdown((d) =>
+        d.addOption("popout", "Popout window").addOption("split", "Main split")
+          .setValue(this.plugin.settings.diffTarget)
+          .onChange(async (v) => { this.plugin.settings.diffTarget = v as "popout" | "split"; await this.plugin.saveData(this.plugin.settings); }));
   }
 }

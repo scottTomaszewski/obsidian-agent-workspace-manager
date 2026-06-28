@@ -66,3 +66,19 @@ export function groupByRepo(files: FileChange[]): Map<string, FileChange[]> {
 export function kindBadge(kind: ChangeKind): string {
   return kind;
 }
+
+export function commitEnabled(checkedCount: number, message: string): boolean {
+  return checkedCount > 0 && message.trim().length > 0;
+}
+
+export type SelectAllState = "none" | "some" | "all";
+
+export function selectAllState(total: number, checked: number): SelectAllState {
+  if (checked === 0 || total === 0) return "none";
+  if (checked >= total) return "all";
+  return "some";
+}
+
+export function stampRepo(files: FileChange[], repo: string): FileChange[] {
+  return files.map((f) => ({ ...f, repo }));
+}

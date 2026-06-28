@@ -66,3 +66,9 @@ Requires at least one task with a worktree and branch.
 - Exiting the shell prints "[oawm] session ended …" and keeps the pane open.
 - Closing the leaf does NOT kill the agent: "Open Terminal" re-attaches to the live zellij session.
 - If the native terminal cannot load, a Notice points to the External-window fallback.
+
+## Settings groups
+- Settings show three headings: Agent terminal, Editor, Diff.
+- "Terminal command" appears only when Terminal host = External window.
+- "Editor command" appears only when Open strategy = External command.
+- Multiplexer path persists across reload.

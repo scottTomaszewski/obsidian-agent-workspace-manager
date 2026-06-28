@@ -242,69 +242,65 @@ class OawmSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
+    const s = this.plugin.settings;
+    const save = () => this.plugin.saveData(s);
+
+    // --- Agent terminal ---
+    new Setting(containerEl).setName("Agent terminal").setHeading();
+
     new Setting(containerEl)
       .setName("Terminal host")
       .setDesc("Where agent terminals open. \"Embedded\" runs them inside Obsidian; \"External window\" spawns a terminal emulator. Takes effect on the next plugin reload.")
       .addDropdown((d) =>
         d.addOption("embedded", "Embedded").addOption("external", "External window")
-          .setValue(this.plugin.settings.terminalHost)
-          .onChange(async (v) => { this.plugin.settings.terminalHost = v as "embedded" | "external"; await this.plugin.saveData(this.plugin.settings); }));
+          .setValue(s.terminalHost)
+          .onChange(async (v) => { s.terminalHost = v as "embedded" | "external"; await save(); this.display(); }));
+
+    if (s.terminalHost === "external") {
+      new Setting(containerEl)
+        .setName("Terminal command")
+        .setDesc("Terminal emulator used to launch and attach to agent sessions. The session command is appended after this prefix. Examples: \"gnome-terminal --\", \"konsole -e\", \"xterm -e\", \"alacritty -e\", \"kitty\", \"wezterm start --\". Takes effect on the next plugin reload.")
+        .addText((t) =>
+          t.setPlaceholder(DEFAULT_TERMINAL_COMMAND).setValue(s.terminalCommand)
+            .onChange(async (v) => { s.terminalCommand = v.trim() || DEFAULT_TERMINAL_COMMAND; await save(); }));
+    }
 
     new Setting(containerEl)
-      .setName("Terminal command")
-      .setDesc(
-        "Terminal emulator used to launch and attach to agent sessions. The session command is appended after this prefix. " +
-        "Examples: \"gnome-terminal --\", \"konsole -e\", \"xterm -e\", \"alacritty -e\", \"kitty\", \"wezterm start --\". " +
-        "Takes effect on the next plugin reload.",
-      )
-      .addText((text) =>
-        text
-          .setPlaceholder(DEFAULT_TERMINAL_COMMAND)
-          .setValue(this.plugin.settings.terminalCommand)
-          .onChange(async (value) => {
-            this.plugin.settings.terminalCommand = value.trim() || DEFAULT_TERMINAL_COMMAND;
-            await this.plugin.saveData(this.plugin.settings);
-          }),
-      );
+      .setName("Multiplexer path")
+      .setDesc("Path to the zellij binary. Use an absolute path (e.g. \"/opt/zellij\") if zellij is not on PATH for non-interactive processes — a shell alias in ~/.bashrc is not visible here. Takes effect on the next plugin reload.")
+      .addText((t) =>
+        t.setPlaceholder(DEFAULT_ZELLIJ_BIN).setValue(s.zellijPath)
+          .onChange(async (v) => { s.zellijPath = v.trim() || DEFAULT_ZELLIJ_BIN; await save(); }));
+
+    // --- Editor ---
+    new Setting(containerEl).setName("Editor").setHeading();
 
     new Setting(containerEl)
-      .setName("Zellij path")
-      .setDesc(
-        "Path to the zellij binary. Use an absolute path (e.g. \"/opt/zellij\") if zellij is not on PATH " +
-        "for non-interactive processes — a shell alias in ~/.bashrc is not visible here. " +
-        "Takes effect on the next plugin reload.",
-      )
-      .addText((text) =>
-        text
-          .setPlaceholder(DEFAULT_ZELLIJ_BIN)
-          .setValue(this.plugin.settings.zellijPath)
-          .onChange(async (value) => {
-            this.plugin.settings.zellijPath = value.trim() || DEFAULT_ZELLIJ_BIN;
-            await this.plugin.saveData(this.plugin.settings);
-          }),
-      );
+      .setName("Open strategy")
+      .setDesc("How the ✎ affordance opens a file. \"Terminal pane\" opens it in a new pane in the task's zellij session (works over SSH); \"External command\" spawns a GUI editor command.")
+      .addDropdown((d) =>
+        d.addOption("mux", "Terminal pane (zellij)").addOption("external", "External command")
+          .setValue(s.editorStrategy)
+          .onChange(async (v) => { s.editorStrategy = v as "mux" | "external"; await save(); this.display(); }));
+
+    if (s.editorStrategy === "external") {
+      new Setting(containerEl)
+        .setName("Editor command")
+        .setDesc("Command template with {file} and {line} placeholders. Examples: \"nvim +{line} {file}\", \"glow {file}\", \"code -g {file}:{line}\".")
+        .addText((t) =>
+          t.setPlaceholder("nvim +{line} {file}").setValue(s.editorCommand)
+            .onChange(async (v) => { s.editorCommand = v; await save(); }));
+    }
+
+    // --- Diff ---
+    new Setting(containerEl).setName("Diff").setHeading();
 
     new Setting(containerEl)
       .setName("Diff window")
       .setDesc("Where file diffs open. \"Popout\" opens a separate window so you can read a diff while referencing code in the main window; \"Split\" opens in the main editor area; \"New tab\" opens a tab alongside your notes.")
       .addDropdown((d) =>
         d.addOption("popout", "Popout window").addOption("split", "Main split").addOption("tab", "New tab")
-          .setValue(this.plugin.settings.diffTarget)
-          .onChange(async (v) => { this.plugin.settings.diffTarget = v as DiffTarget; await this.plugin.saveData(this.plugin.settings); }));
-
-    new Setting(containerEl)
-      .setName("Editor open strategy")
-      .setDesc("How the ✎ affordance opens a file. \"Terminal pane\" opens it in a new pane in the task's zellij session (works over SSH); \"External\" spawns a GUI editor command.")
-      .addDropdown((d) =>
-        d.addOption("mux", "Terminal pane (zellij)").addOption("external", "External command")
-          .setValue(this.plugin.settings.editorStrategy)
-          .onChange(async (v) => { this.plugin.settings.editorStrategy = v as "mux" | "external"; await this.plugin.saveData(this.plugin.settings); }));
-
-    new Setting(containerEl)
-      .setName("Editor command")
-      .setDesc("Command template with {file} and {line} placeholders. Examples: \"nvim +{line} {file}\", \"glow {file}\", \"code -g {file}:{line}\".")
-      .addText((t) =>
-        t.setPlaceholder("nvim +{line} {file}").setValue(this.plugin.settings.editorCommand)
-          .onChange(async (v) => { this.plugin.settings.editorCommand = v; await this.plugin.saveData(this.plugin.settings); }));
+          .setValue(s.diffTarget)
+          .onChange(async (v) => { s.diffTarget = v as DiffTarget; await save(); }));
   }
 }

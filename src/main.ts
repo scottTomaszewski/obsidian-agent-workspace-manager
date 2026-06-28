@@ -74,11 +74,12 @@ export default class OawmPlugin extends Plugin {
 
     this.vault = new ObsidianVaultGateway(this.app);
     this.git = new RealGitBackend();
+    this.pty = new NodePtyHost();
+    this.registerView(TERMINAL_VIEW_TYPE, (leaf: WorkspaceLeaf) => new TerminalView(leaf, this.pty));
     const launcher = this.settings.terminalHost === "embedded"
       ? new EmbeddedTerminalLauncher(this.app)
       : new SpawnTerminalLauncher(this.settings.terminalCommand || DEFAULT_TERMINAL_COMMAND);
     this.mux = new ZellijBackend(launcher, this.settings.zellijPath);
-    this.pty = new NodePtyHost();
     const notifier = { notice: (m: string) => new Notice(`OAWM: ${m}`), confirm: async (m: string) => confirm(m) };
     const agent = new ClaudeBackend({ mux: this.mux, hookHelperPath, statusDir: this.statusDir });
     this.completion = new CompletionCoordinator({ vault: this.vault, git: this.git, mux: this.mux, notifier });
@@ -105,7 +106,6 @@ export default class OawmPlugin extends Plugin {
       },
     };
     this.registerView(DIFF_VIEW_TYPE, (leaf: WorkspaceLeaf) => new DiffView(leaf, diffPrefs));
-    this.registerView(TERMINAL_VIEW_TYPE, (leaf: WorkspaceLeaf) => new TerminalView(leaf, this.pty));
     this.registerView(CHANGES_VIEW_TYPE, (leaf: WorkspaceLeaf) =>
       new ChangesView(leaf, {
         vault: this.vault, git: this.git, completion: this.completion, commit,

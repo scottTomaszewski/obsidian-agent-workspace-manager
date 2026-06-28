@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { zellijArgs, parseAliveSessions, buildLaunchScript, buildLayout } from "../src/backends/zellij";
+import { zellijArgs, parseAliveSessions, buildLaunchScript, buildLayout, newPaneArgs } from "../src/backends/zellij";
 
 describe("buildLayout", () => {
   it("runs the command in a bash pane that stays open", () => {
@@ -64,5 +64,13 @@ describe("parseAliveSessions", () => {
   it("handles empty output", () => {
     expect(parseAliveSessions("")).toEqual([]);
     expect(parseAliveSessions("   \n  ")).toEqual([]);
+  });
+});
+
+describe("newPaneArgs", () => {
+  it("targets the session and runs the command in a new pane", () => {
+    expect(newPaneArgs("oawm-DS-1", "/code/web", "nvim +5 a.ts")).toEqual([
+      "--session", "oawm-DS-1", "action", "new-pane", "--cwd", "/code/web", "--", "bash", "-lc", "nvim +5 a.ts",
+    ]);
   });
 });

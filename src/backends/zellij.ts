@@ -81,6 +81,10 @@ export const zellijArgs = {
   list(): string[] { return ["list-sessions", "--no-formatting"]; },
 };
 
+export function newPaneArgs(session: string, cwd: string, command: string): string[] {
+  return ["--session", session, "action", "new-pane", "--cwd", cwd, "--", "bash", "-lc", command];
+}
+
 export class ZellijBackend implements MuxBackend {
   private terminal: TerminalLauncher;
   private bin: string;
@@ -116,5 +120,9 @@ export class ZellijBackend implements MuxBackend {
   async isAlive(session: string): Promise<boolean> {
     const res = await run(this.bin, zellijArgs.list());
     return parseAliveSessions(res.stdout).includes(session);
+  }
+
+  async openPane(session: string, cwd: string, command: string): Promise<void> {
+    await run(this.bin, newPaneArgs(session, cwd, command));
   }
 }

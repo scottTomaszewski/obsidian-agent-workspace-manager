@@ -86,6 +86,7 @@ export class FakeGit implements GitBackend {
 export class FakeMux implements MuxBackend {
   alive = new Set<string>();
   creates: { session: string; cwd: string; command: string; env: Record<string, string> }[] = [];
+  openPaneCalls: { session: string; cwd: string; command: string }[] = [];
   async create(session: string, cwd: string, command: string, env: Record<string, string>) {
     this.creates.push({ session, cwd, command, env });
     this.alive.add(session);
@@ -93,6 +94,7 @@ export class FakeMux implements MuxBackend {
   async kill(session: string) { this.alive.delete(session); }
   async focus() {}
   async isAlive(session: string) { return this.alive.has(session); }
+  async openPane(session: string, cwd: string, command: string) { this.openPaneCalls.push({ session, cwd, command }); }
 }
 
 export class FakeAgent implements AgentBackend {

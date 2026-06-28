@@ -32,6 +32,7 @@ export interface MuxBackend {
   kill(session: string): Promise<void>;
   focus(session: string): Promise<void>;
   isAlive(session: string): Promise<boolean>;
+  openPane(session: string, cwd: string, command: string): Promise<void>;
 }
 
 export interface LaunchArgs {

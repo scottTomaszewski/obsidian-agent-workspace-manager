@@ -29,6 +29,13 @@ describe("availableActions", () => {
     expect(availableActions(active("Failed")))
       .toEqual(["openTerminal", "restart", "cancel"]);
   });
+  it("Failed but the worktree still exists → Review stays available", () => {
+    const t: TaskNote = {
+      ...base, status: "Running", agentState: "Failed",
+      branch: "oawm/ds-1-t", worktree: ".oawm-worktrees/ds-1-t",
+    };
+    expect(availableActions(t)).toEqual(["viewDiff", "restart", "cancel"]);
+  });
   it("active but no branch yet → no git actions", () => {
     expect(availableActions({ ...active("Running"), branch: "" }))
       .toEqual(["openTerminal", "viewDiff", "cancel"]);

@@ -9,7 +9,12 @@ function stateActions(task: TaskNote): ActionId[] {
   if (task.status === "Pending") return ["start"];
   if (task.status === "Cancelled" || task.status === "Completed") return ["start"];
   // status === "Running"
-  if (task.agentState === "Failed") return ["restart", "cancel"];
+  if (task.agentState === "Failed") {
+    // The agent process died (e.g. zellij was closed) but the worktree outlives it on
+    // disk — keep Review available so the user can still open the Changes panel against it.
+    const review: ActionId[] = task.worktree ? ["viewDiff"] : [];
+    return [...review, "restart", "cancel"];
+  }
   // Running / Waiting / NeedsReview / "" → active
   const git = task.branch ? GIT_ACTIONS : [];
   return ["openTerminal", "viewDiff", ...git, "cancel"];

@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file. The
 "Unreleased" section is promoted to a version heading by `just release`, and its
 body becomes that release's GitHub notes.
 
+## Unreleased
+
+- Fix: a task's action bar kept the **Review Changes** button when the agent process dies
+  (e.g. you close its zellij session → Failed) as long as the worktree still exists, so you
+  can still open the Changes panel against it.
+
 ## 0.0.19
 
 - The **"Diff window"** setting gained a **New tab** option — open diffs in a tab alongside

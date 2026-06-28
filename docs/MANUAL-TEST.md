@@ -59,3 +59,10 @@ Requires at least one task with a worktree and branch.
    - [ ] "Open PR/MR" pushes the task branch and (on GitHub) opens the compare URL in the browser.
 
 **Known limitation:** Merge and Merge & Push currently integrate only the task's primary repo (the first entry in `repositories`), even when the Unmerged tab lists committed files from multiple repos. Secondary repos must be merged manually.
+
+## Embedded terminal
+- With Terminal host = Embedded, starting a task opens a terminal leaf running the agent.
+- Typing works; resizing the pane reflows the terminal.
+- Exiting the shell prints "[oawm] session ended …" and keeps the pane open.
+- Closing the leaf does NOT kill the agent: "Open Terminal" re-attaches to the live zellij session.
+- If the native terminal cannot load, a Notice points to the External-window fallback.

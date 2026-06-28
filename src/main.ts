@@ -15,6 +15,8 @@ import { registerTaskCodeBlock, ActionId } from "./obsidian/taskCodeBlock";
 import { DashboardView, DASHBOARD_VIEW_TYPE } from "./obsidian/dashboardView";
 import { DiffView, DIFF_VIEW_TYPE, openDiffLeaf, DiffPrefsGateway, DiffTarget } from "./obsidian/diffView";
 import { ChangesView, CHANGES_VIEW_TYPE } from "./obsidian/changesView";
+import { TerminalView, TERMINAL_VIEW_TYPE } from "./obsidian/terminalView";
+import { NodePtyHost } from "./backends/pty";
 import { buildEditorCommand } from "./core/editorOpen";
 import { resolveTaskWorktrees } from "./core/worktrees";
 import type { TaskNote } from "./domain/types";
@@ -46,6 +48,7 @@ export default class OawmPlugin extends Plugin {
   private vault!: ObsidianVaultGateway;
   private git!: RealGitBackend;
   private mux!: ZellijBackend;
+  private pty!: NodePtyHost;
   private statusDir!: string;
   private ingest!: StatusIngest;
   private sweepTimer?: number;
@@ -70,6 +73,7 @@ export default class OawmPlugin extends Plugin {
     this.git = new RealGitBackend();
     const launcher = new SpawnTerminalLauncher(this.settings.terminalCommand || DEFAULT_TERMINAL_COMMAND);
     this.mux = new ZellijBackend(launcher, this.settings.zellijPath);
+    this.pty = new NodePtyHost();
     const notifier = { notice: (m: string) => new Notice(`OAWM: ${m}`), confirm: async (m: string) => confirm(m) };
     const agent = new ClaudeBackend({ mux: this.mux, hookHelperPath, statusDir: this.statusDir });
     this.completion = new CompletionCoordinator({ vault: this.vault, git: this.git, mux: this.mux, notifier });
@@ -96,6 +100,7 @@ export default class OawmPlugin extends Plugin {
       },
     };
     this.registerView(DIFF_VIEW_TYPE, (leaf: WorkspaceLeaf) => new DiffView(leaf, diffPrefs));
+    this.registerView(TERMINAL_VIEW_TYPE, (leaf: WorkspaceLeaf) => new TerminalView(leaf, this.pty));
     this.registerView(CHANGES_VIEW_TYPE, (leaf: WorkspaceLeaf) =>
       new ChangesView(leaf, {
         vault: this.vault, git: this.git, completion: this.completion, commit,

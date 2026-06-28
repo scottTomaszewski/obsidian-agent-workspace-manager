@@ -1,4 +1,4 @@
-import type { VaultGateway, GitBackend, MuxBackend, AgentBackend, Notifier, LaunchArgs } from "../src/core/ports";
+import type { VaultGateway, GitBackend, MuxBackend, AgentBackend, Notifier, LaunchArgs, PtyBackend, PtyHandle } from "../src/core/ports";
 import type { TaskNote, WorkspaceNote, AgentNote } from "../src/domain/types";
 
 const baseTask: TaskNote = {
@@ -113,4 +113,22 @@ export class FakeNotifier implements Notifier {
   confirmAnswer = true;
   notice(m: string) { this.notices.push(m); }
   async confirm() { return this.confirmAnswer; }
+}
+
+export class FakePty implements PtyBackend {
+  spawns: { argv: string[]; opts: { cwd?: string; env?: Record<string, string>; cols?: number; rows?: number } }[] = [];
+  dataCbs: ((c: string) => void)[] = [];
+  exitCbs: ((code: number) => void)[] = [];
+  writes: string[] = [];
+  killed = false;
+  spawn(argv: string[], opts: { cwd?: string; env?: Record<string, string>; cols?: number; rows?: number }): PtyHandle {
+    this.spawns.push({ argv, opts });
+    return {
+      onData: (cb) => this.dataCbs.push(cb),
+      onExit: (cb) => this.exitCbs.push(cb),
+      write: (d) => this.writes.push(d),
+      resize: () => {},
+      kill: () => { this.killed = true; },
+    };
+  }
 }

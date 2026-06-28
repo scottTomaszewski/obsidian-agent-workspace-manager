@@ -41,4 +41,21 @@ describe("fakes", () => {
     await g.pushBase("/repo", "main");
     expect(g.pushedBases).toEqual(["main"]);
   });
+  it("pty fake records spawns and drives data/exit", async () => {
+    const { FakePty } = await import("./fakes");
+    const p = new FakePty();
+    const got: string[] = [];
+    let code = -1;
+    const h = p.spawn(["bash"], { cwd: "/wt" });
+    h.onData((d) => got.push(d));
+    h.onExit((c) => { code = c; });
+    p.dataCbs[0]("x");
+    p.exitCbs[0](0);
+    h.write("y"); h.kill();
+    expect(p.spawns[0].argv).toEqual(["bash"]);
+    expect(got).toEqual(["x"]);
+    expect(code).toBe(0);
+    expect(p.writes).toEqual(["y"]);
+    expect(p.killed).toBe(true);
+  });
 });

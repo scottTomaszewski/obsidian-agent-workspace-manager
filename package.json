@@ -18,5 +18,8 @@
     "obsidian": "^1.5.0",
     "typescript": "^5.4.0",
     "vitest": "^1.5.0"
+  },
+  "dependencies": {
+    "@homebridge/node-pty-prebuilt-multiarch": "^0.13.1"
   }
 }

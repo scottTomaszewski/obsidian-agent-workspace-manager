@@ -51,3 +51,18 @@ export interface Notifier {
   notice(msg: string): void;
   confirm(msg: string): Promise<boolean>;
 }
+
+export interface PtyHandle {
+  onData(cb: (chunk: string) => void): void;
+  onExit(cb: (code: number) => void): void;
+  write(data: string): void;
+  resize(cols: number, rows: number): void;
+  kill(): void;
+}
+
+export interface PtyBackend {
+  spawn(
+    argv: string[],
+    opts: { cwd?: string; env?: Record<string, string>; cols?: number; rows?: number },
+  ): PtyHandle;
+}

@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file. The
 "Unreleased" section is promoted to a version heading by `just release`, and its
 body becomes that release's GitHub notes.
 
-## Unreleased
+## 0.0.14
 
 - Add a task-scoped **Changes panel** (command: "Open Task Changes panel", plus a
   Review affordance on dashboard rows): a Workspace Overview listing each task's local

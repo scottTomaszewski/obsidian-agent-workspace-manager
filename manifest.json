@@ -1,7 +1,7 @@
 {
   "id": "oawm",
   "name": "Agent Workspace Manager",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "minAppVersion": "1.5.0",
   "description": "Task-centric control plane for native Claude Code agents.",
   "author": "Vexa",

@@ -93,7 +93,10 @@ DOM is *not* unit-tested (node has no `document`) — it's thin and checked via
 - `obsidian/dashboardView.ts` — workspace dashboard (`groupByState`), row → open note / Review.
 - `obsidian/changesView.ts` — Task Changes panel (overview + Local/Unmerged tabs, commit/diff/edit).
 - `obsidian/diffView.ts` — `DiffView` ItemView + `openDiffLeaf` (popout/split, single reused leaf).
-- `obsidian/diffPanel.ts` — `splitDiffLines` diff formatting (+ legacy `DiffModal`).
+  Scalable toolbar with unified/side-by-side layout + line-wrap toggles, persisted via a
+  `DiffPrefsGateway` wired to the `diffLayout`/`diffWrap` settings in `main.ts`.
+- `obsidian/diffPanel.ts` — diff parsing: `classifyDiffLine`, `splitDiffLines` (unified),
+  and `buildSideBySide` (two-column model). (+ legacy unused `DiffModal`.)
 - `obsidian/taskCodeBlock.ts` — per-task action bar (`oawm-task` code block), action ids + labels.
 
 **top level:**

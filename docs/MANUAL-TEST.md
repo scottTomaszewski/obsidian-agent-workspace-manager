@@ -15,7 +15,13 @@ Install: copy `main.js`, `manifest.json`, `styles.css` into `<vault>/.obsidian/p
    - [ ] task badge flips to Waiting + Obsidian notice
 4. Let claude finish a turn (Stop hook).
    - [ ] badge flips to NeedsReview
-5. Click **View Diff** → modal shows colored diff of the branch.
+5. Click **View Diff** → a popout/split diff leaf opens (per the "Diff window" setting) with a
+   toolbar: `Unified | Side-by-side` + `Wrap`.
+   - [ ] Default layout is **Side-by-side** (two aligned columns with old/new line numbers;
+         deletions tinted red on the left, additions green on the right).
+   - [ ] **Wrap** off → long lines scroll horizontally; **Wrap** on → lines soft-wrap.
+   - [ ] **Unified** shows the single-column colored diff; toggling back to Side-by-side keeps content.
+   - [ ] Close + reopen the diff (or reload the plugin) → it returns in the last-used layout/wrap state.
 6. Completion actions (task must have a branch):
    - [ ] **Merge**: branch fast-forwards into base branch, worktree removed, session killed. Badge → Idle.
    - [ ] **Merge & Push**: same as Merge, then also pushes base branch to remote.

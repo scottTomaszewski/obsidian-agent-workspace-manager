@@ -15,6 +15,8 @@ body becomes that release's GitHub notes.
   "Diff window" setting) instead of a blocking modal.
 - Add a configurable **editor-open** action (✎): open a changed file in the task's
   zellij pane or via an external editor command (`{file}`/`{line}` template).
+- The diff view gained a toolbar with a **side-by-side** layout (now the default) alongside the
+  unified view, plus a **line-wrap** toggle (vs. horizontal scroll). Both preferences persist.
 - Known limitation: merging a multi-repo task currently integrates only its primary
   repo (the panel shows a caveat); committing is fully multi-repo.
 

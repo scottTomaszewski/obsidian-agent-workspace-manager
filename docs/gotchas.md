@@ -82,3 +82,18 @@ tasks.
 empty data. A few read paths intentionally swallow non-zero git exits (e.g. `status`
 returns `[]`, `getRemoteUrl` returns `""`), matching the existing tolerant pattern. The
 Notifier surfaces user-facing outcomes.
+
+## Side-by-side diff is derived from the unified diff string, not a second git call
+
+`buildSideBySide` (`src/obsidian/diffPanel.ts`) reconstructs two columns from the same
+unified diff the unified view uses — there is no separate `git diff` invocation. Within a
+hunk it buffers consecutive `-` lines (left) and `+` lines (right) and zips them row-by-row
+on the next context line or hunk boundary (`flush()`); the shorter side gets `null` cells.
+Line numbers seed from the `@@ -old +new @@` header. Two non-obvious skips: lines starting
+with `\` (the "No newline at end of file" marker) and a trailing empty string from
+`split("\n")` are dropped so they don't create phantom rows or mis-number columns.
+
+The side-by-side grid uses **two** `grid-template-columns` sets on purpose: `max-content`
+text columns (so the grid overflows and the container scrolls horizontally when Wrap is off)
+vs. `minmax(0,1fr)` columns (so cells can `pre-wrap` when Wrap is on). The `.oawm-diff-wrap`
+class on the container switches between them — see `styles.css`.

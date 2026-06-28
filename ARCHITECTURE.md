@@ -84,7 +84,8 @@ DOM is *not* unit-tested (node has no `document`) — it's thin and checked via
 **backends (side effects):**
 - `backends/exec.ts` — `run(...)` child-process wrapper (stdout/stderr/code).
 - `backends/git.ts` — `RealGitBackend`: all git via `run` over raw `git` (no gh/glab).
-- `backends/zellij.ts` — `ZellijBackend`: sessions + panes via the zellij CLI.
+- `backends/zellij.ts` — `ZellijBackend`: sessions + panes via the zellij CLI; accepts an injected `TerminalLauncher` seam that routes `create`/`focus` to either external zellij or the embedded terminal.
+- `backends/pty.ts` — `PtyBackend`/`NodePtyHost`: node-pty host adapter; spawns a pty process and streams data to `TerminalView`.
 - `backends/claude.ts` — `ClaudeBackend`: builds the claude launch command (hook env, status dir) and starts the session.
 - `backends/terminal.ts` — terminal-command prefix handling.
 
@@ -98,8 +99,10 @@ DOM is *not* unit-tested (node has no `document`) — it's thin and checked via
 - `obsidian/diffPanel.ts` — diff parsing: `classifyDiffLine`, `splitDiffLines` (unified),
   and `buildSideBySide` (two-column model). (+ legacy unused `DiffModal`.)
 - `obsidian/taskCodeBlock.ts` — per-task action bar (`oawm-task` code block), action ids + labels.
+- `obsidian/terminalView.ts` — xterm.js `ItemView`; one leaf per session, keyed by session id.
+- `obsidian/embeddedTerminal.ts` — `EmbeddedTerminalLauncher`: `TerminalLauncher` implementation that opens/focuses `TerminalView` leaves.
 
 **top level:**
-- `main.ts` — composition root: settings, wires ports→coordinators→views, hook helper write, status watcher + sweep, command/ribbon registration, action routing.
+- `main.ts` — composition root: settings (`terminalHost` selects external zellij vs embedded xterm.js), wires ports→coordinators→views, hook helper write, status watcher + sweep, command/ribbon registration, action routing.
 - `hookScript.ts` — embedded `oawm-hook.mjs` source (written to disk on load).
 - `version.ts` — `VERSION` constant (kept in lockstep by `just release`).

@@ -1,6 +1,6 @@
 # Roadmap
 
-<!-- next-id: 2 -->
+<!-- next-id: 3 -->
 
 New features and larger planned / in-flight efforts. Add a numbered `## N.` section
 below (take N from `next-id` above, then increment it). Small in-scope tangents off
@@ -19,6 +19,16 @@ concrete planned effort.
 ## N. Short title
 **Status:** planned
 What the effort is and why. Link to a plan/spec doc under docs/superpowers/ once one exists. -->
+
+## 2. tmux MuxBackend adapter
+
+**Status:** planned
+
+Add a `TmuxBackend` implementing the existing `MuxBackend` port
+(`new-session`/`attach-session`/`list-sessions`/`kill-session`/`split-window`) so tmux
+can be selected alongside zellij. Because the `TerminalLauncher` seam already decouples
+session creation from the terminal host, this composes with the embedded xterm.js
+terminal with no further changes to the embedded-terminal path.
 
 ## 1. Multi-repo merge / completion
 

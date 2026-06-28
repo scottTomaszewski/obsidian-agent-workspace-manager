@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The
 "Unreleased" section is promoted to a version heading by `just release`, and its
 body becomes that release's GitHub notes.
 
+## Unreleased
+
+- Embedded terminal: run agent sessions inside Obsidian (xterm.js + node-pty) via the new "Terminal host: Embedded" setting; settings tab regrouped.
+
 ## 0.0.20
 
 - Fix: a task's action bar kept the **Review Changes** button when the agent process dies

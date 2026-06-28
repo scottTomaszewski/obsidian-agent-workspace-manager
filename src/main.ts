@@ -5,6 +5,7 @@ import { HOOK_SCRIPT } from "./hookScript";
 import { ObsidianVaultGateway } from "./obsidian/vaultGateway";
 import { RealGitBackend } from "./backends/git";
 import { ZellijBackend, DEFAULT_TERMINAL_COMMAND, DEFAULT_ZELLIJ_BIN } from "./backends/zellij";
+import { SpawnTerminalLauncher } from "./backends/terminal";
 import { ClaudeBackend } from "./backends/claude";
 import { Orchestrator } from "./core/orchestrator";
 import { CompletionCoordinator } from "./core/completion";
@@ -67,7 +68,8 @@ export default class OawmPlugin extends Plugin {
 
     this.vault = new ObsidianVaultGateway(this.app);
     this.git = new RealGitBackend();
-    this.mux = new ZellijBackend(this.settings.terminalCommand, this.settings.zellijPath);
+    const launcher = new SpawnTerminalLauncher(this.settings.terminalCommand || DEFAULT_TERMINAL_COMMAND);
+    this.mux = new ZellijBackend(launcher, this.settings.zellijPath);
     const notifier = { notice: (m: string) => new Notice(`OAWM: ${m}`), confirm: async (m: string) => confirm(m) };
     const agent = new ClaudeBackend({ mux: this.mux, hookHelperPath, statusDir: this.statusDir });
     this.completion = new CompletionCoordinator({ vault: this.vault, git: this.git, mux: this.mux, notifier });

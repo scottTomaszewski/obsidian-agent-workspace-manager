@@ -15,7 +15,10 @@ export function buildTerminalArgv(terminalCommand: string, inner: string[]): str
 }
 
 export interface TerminalLauncher {
-  open(inner: string[], opts?: { cwd?: string; env?: Record<string, string> }): Promise<void>;
+  open(
+    inner: string[],
+    opts?: { cwd?: string; env?: Record<string, string>; key?: string; title?: string },
+  ): Promise<void>;
 }
 
 /**

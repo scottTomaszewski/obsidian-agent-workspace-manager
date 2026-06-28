@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { zellijArgs, parseAliveSessions, buildLaunchScript, buildLayout, newPaneArgs } from "../src/backends/zellij";
+import { zellijArgs, parseAliveSessions, buildLaunchScript, buildLayout, newPaneArgs, ZellijBackend, labelFromSession } from "../src/backends/zellij";
+import type { TerminalLauncher } from "../src/backends/terminal";
+
+class FakeTerminalLauncher implements TerminalLauncher {
+  calls: { inner: string[]; opts?: { cwd?: string; env?: Record<string,string>; key?: string; title?: string } }[] = [];
+  async open(inner: string[], opts?: any) { this.calls.push({ inner, opts }); }
+}
 
 describe("buildLayout", () => {
   it("runs the command in a bash pane that stays open", () => {
@@ -72,5 +78,35 @@ describe("newPaneArgs", () => {
     expect(newPaneArgs("oawm-DS-1", "/code/web", "nvim +5 a.ts")).toEqual([
       "--session", "oawm-DS-1", "action", "new-pane", "--cwd", "/code/web", "--", "bash", "-lc", "nvim +5 a.ts",
     ]);
+  });
+});
+
+describe("labelFromSession", () => {
+  it("strips the oawm- prefix", () => {
+    expect(labelFromSession("oawm-DS-1")).toBe("DS-1");
+  });
+  it("leaves a non-prefixed name unchanged", () => {
+    expect(labelFromSession("custom")).toBe("custom");
+  });
+});
+
+describe("ZellijBackend with injected launcher", () => {
+  it("create() opens a bash script keyed/titled by the session", async () => {
+    const launcher = new FakeTerminalLauncher();
+    const zb = new ZellijBackend(launcher, "/opt/zellij");
+    await zb.create("oawm-DS-1", "/wt", "claude", { K: "v" });
+    expect(launcher.calls).toHaveLength(1);
+    expect(launcher.calls[0].inner[0]).toBe("bash");
+    expect(launcher.calls[0].opts?.key).toBe("oawm-DS-1");
+    expect(launcher.calls[0].opts?.title).toBe("DS-1");
+  });
+
+  it("focus() reattaches keyed/titled by the session", async () => {
+    const launcher = new FakeTerminalLauncher();
+    const zb = new ZellijBackend(launcher, "/opt/zellij");
+    await zb.focus("oawm-DS-1");
+    expect(launcher.calls).toHaveLength(1);
+    expect(launcher.calls[0].opts?.key).toBe("oawm-DS-1");
+    expect(launcher.calls[0].opts?.title).toBe("DS-1");
   });
 });

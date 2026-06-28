@@ -3,10 +3,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { MuxBackend } from "../core/ports";
 import { run } from "./exec";
-import { SpawnTerminalLauncher, type TerminalLauncher } from "./terminal";
+import type { TerminalLauncher } from "./terminal";
 
 export const DEFAULT_TERMINAL_COMMAND = "gnome-terminal --";
 export const DEFAULT_ZELLIJ_BIN = "zellij";
+
+/** Derive a short tab label from a session name: "oawm-DS-1" → "DS-1". */
+export function labelFromSession(session: string): string {
+  const prefix = "oawm-";
+  return session.startsWith(prefix) ? session.slice(prefix.length) : session;
+}
 
 /**
  * Parse the output of `zellij list-sessions --no-formatting` and return the
@@ -89,8 +95,8 @@ export class ZellijBackend implements MuxBackend {
   private terminal: TerminalLauncher;
   private bin: string;
 
-  constructor(terminalCommand: string = DEFAULT_TERMINAL_COMMAND, zellijBin: string = DEFAULT_ZELLIJ_BIN) {
-    this.terminal = new SpawnTerminalLauncher(terminalCommand || DEFAULT_TERMINAL_COMMAND);
+  constructor(launcher: TerminalLauncher, zellijBin: string = DEFAULT_ZELLIJ_BIN) {
+    this.terminal = launcher;
     // The terminal emulator and Electron exec the binary by PATH lookup, where a
     // shell alias (e.g. for /opt/zellij) is not visible — so allow an explicit path.
     this.bin = zellijBin || DEFAULT_ZELLIJ_BIN;
@@ -104,7 +110,9 @@ export class ZellijBackend implements MuxBackend {
     writeFileSync(layoutPath, buildLayout(command));
     const scriptPath = join(dir, "launch.sh");
     writeFileSync(scriptPath, buildLaunchScript(this.bin, session, cwd, env, layoutPath), { mode: 0o700 });
-    await this.terminal.open(["bash", scriptPath], { cwd, env });
+    await this.terminal.open(["bash", scriptPath], {
+      cwd, env, key: session, title: labelFromSession(session),
+    });
   }
 
   async kill(session: string): Promise<void> {
@@ -114,7 +122,9 @@ export class ZellijBackend implements MuxBackend {
   async focus(session: string): Promise<void> {
     // Keep the window open if the attach fails (e.g. the session is gone).
     const script = `${shquote(this.bin)} attach ${shquote(session)}; echo; echo "[oawm] detached (exit $?). Ctrl-D to close."; exec bash`;
-    await this.terminal.open(["bash", "-lc", script]);
+    await this.terminal.open(["bash", "-lc", script], {
+      key: session, title: labelFromSession(session),
+    });
   }
 
   async isAlive(session: string): Promise<boolean> {

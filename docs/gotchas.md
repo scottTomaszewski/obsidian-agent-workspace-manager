@@ -111,3 +111,13 @@ deliberate:
 You can't get both behaviors from a single grid: a grid gives shared row heights (needed for
 wrap) but can't make a subset of columns scroll together (needed for per-side scroll). Hence
 the two renderers. See `styles.css`.
+
+**Horizontal scrollbars need explicit width constraints** — two non-obvious bits in
+`styles.css` without which the scrollbar silently never appears:
+- `.oawm-diff-pane` needs `min-width: 0`. It's a `1fr` grid item, and grid items default to
+  `min-width: auto` (won't shrink below content), so the track would grow to the widest line
+  and the grid overflows (clipped) instead of the pane scrolling at 50%.
+- The no-wrap unified `<pre>`'s line `<div>`s get `width: max-content` (scoped to
+  `:not(.oawm-diff-wrap)`). Block children otherwise stay `<pre>`-width and their inline
+  overflow doesn't reliably extend the `<pre>`'s scroll width, so no scrollbar. (Scoped away
+  from wrap mode, where `max-content` would defeat wrapping.)

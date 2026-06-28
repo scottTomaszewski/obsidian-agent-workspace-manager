@@ -9,6 +9,9 @@
 .oawm-dash-agent { color: var(--text-muted); font-size: 12px; }
 .oawm-diff { font-family: var(--font-monospace); font-size: 12px; white-space: pre; overflow-x: auto; }
 .oawm-diff.oawm-diff-wrap { white-space: pre-wrap; word-break: break-word; overflow-x: hidden; }
+/* No-wrap unified: size each line to its content so the <pre> reports a scrollable
+   overflow (block children would otherwise stay pre-width and never trigger the bar). */
+.oawm-diff:not(.oawm-diff-wrap) > div { width: max-content; min-width: 100%; }
 .oawm-diff-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0 8px; }
 .oawm-diff-tbgroup { display: inline-flex; gap: 2px; }
 .oawm-diff-tbbtn { padding: 2px 8px; font-size: 12px; }
@@ -54,7 +57,10 @@
 /* Wrap OFF: two independently-scrolling panes */
 .oawm-diff-sxs-panes { display: grid; grid-template-columns: 1fr 1fr; column-gap: 8px;
   font-family: var(--font-monospace); font-size: 12px; }
-.oawm-diff-pane { overflow-x: auto; }
+/* min-width:0 is load-bearing: without it the grid item defaults to min-width:auto,
+   the 1fr track grows to the widest line, and the grid overflows (clipped, no scrollbar)
+   instead of the pane scrolling at 50%. */
+.oawm-diff-pane { overflow-x: auto; min-width: 0; }
 .oawm-diff-srow { display: flex; width: max-content; min-width: 100%; }
 .oawm-diff-srow .oawm-diff-cell { flex: 1 0 auto; }
 .oawm-diff-pane .oawm-diff-num { position: sticky; left: 0; flex: 0 0 auto;

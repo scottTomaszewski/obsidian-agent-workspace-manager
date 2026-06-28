@@ -2,6 +2,14 @@
 tags: 
 ---
 
+> **This is the aspirational product vision, not the current implementation.** Much
+> here is not built yet, and some of it differs from what exists: in particular there is
+> **no separate orchestrator daemon / RPC socket** (the orchestrator runs in-plugin), and
+> execution profiles, SSH/Docker hosts, and multiple providers are future work. For how
+> the code actually works today, read [ARCHITECTURE.md](ARCHITECTURE.md) and
+> [CLAUDE.md](CLAUDE.md). Promote concrete near-term efforts from here into
+> [ROADMAP.md](ROADMAP.md).
+
 # Obsidian Agent Workspace Manager
 
 ## Vision

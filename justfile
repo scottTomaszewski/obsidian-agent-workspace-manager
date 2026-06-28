@@ -57,6 +57,14 @@ release version:
 	token="$(just _gh-token)"
 	if [[ -n "$token" ]]; then export GH_TOKEN="$token"; fi
 
+	# Assemble a self-contained plugin folder including the native terminal module,
+	# which the loose-file assets cannot carry. node-pty is required at runtime by
+	# main.js and resolves from the plugin's node_modules.
+	rm -rf dist-plugin && mkdir -p dist-plugin/node_modules
+	cp main.js manifest.json styles.css dist-plugin/
+	cp -R node_modules/@homebridge dist-plugin/node_modules/
+	( cd dist-plugin && zip -r ../oawm-"$version".zip . )
+
 	# Tag at the just-pushed commit and attach the standard Obsidian plugin assets.
 	# The oawm-hook helper is written to disk by the plugin on load (embedded in
 	# main.js), so it is not a separate release asset.
@@ -64,7 +72,7 @@ release version:
 		--title "$version" \
 		--target "$(git rev-parse --abbrev-ref HEAD)" \
 		--notes "$notes" \
-		main.js manifest.json styles.css
+		main.js manifest.json styles.css oawm-"$version".zip
 
 # Echo a GitHub token for `gh`. devbox bundles its own gh (nixpkgs) that can't
 # read the host keyring where `gh auth login` stored the token, so fall back to

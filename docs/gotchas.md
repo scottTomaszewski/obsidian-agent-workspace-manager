@@ -131,3 +131,15 @@ horizontal scrollbars stay pinned to the viewport.
   `:not(.oawm-diff-wrap)`). Block children otherwise stay `<pre>`-width and their inline
   overflow doesn't reliably extend the `<pre>`'s scroll width, so no scrollbar. (Scoped away
   from wrap mode, where `max-content` would defeat wrapping.)
+
+## Embedded terminal: native module packaging & ABI
+- The embedded terminal needs a real PTY via `@homebridge/node-pty-prebuilt-multiarch`,
+  a native module. It is `external` in esbuild and `require`d at runtime, so it must sit
+  in the plugin's `node_modules` — hence the release ships a self-contained zip, not just
+  the loose `main.js/manifest/styles`.
+- The prebuilt `.node` must match Obsidian's Electron ABI (`process.versions.modules`).
+  After an Obsidian Electron bump, re-validate (Task 6 steps) and re-release if needed.
+- xterm's CSS is copied into `styles.css` (no runtime `@import` from node_modules); re-copy
+  on xterm upgrades.
+- zellij stays the persistence spine: the TerminalView is only a viewport. Closing the leaf
+  kills the attached PTY, not the detached zellij session — "Open Terminal" re-attaches.

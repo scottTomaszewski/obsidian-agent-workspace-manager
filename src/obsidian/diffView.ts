@@ -1,5 +1,5 @@
 import { ItemView, WorkspaceLeaf, App } from "obsidian";
-import { splitDiffLines } from "./diffPanel";
+import { splitDiffLines, buildSideBySide, SideCell } from "./diffPanel";
 
 export const DIFF_VIEW_TYPE = "oawm-diff";
 
@@ -58,10 +58,25 @@ export class DiffView extends ItemView {
     }
   }
 
-  // Replaced by the real grid in Task 3. Until then, fall back to unified so the
-  // body always renders something while the layout toggle is wired.
   private renderSideBySide(body: HTMLElement) {
-    this.renderUnified(body);
+    const grid = body.createDiv({ cls: "oawm-diff-sxs" + (this.prefs.wrap ? " oawm-diff-wrap" : "") });
+    const rows = buildSideBySide(this.state.diff || "");
+    if (rows.length === 0) { grid.createDiv({ cls: "oawm-diff-meta-row", text: "(no changes)" }); return; }
+    for (const row of rows) {
+      if (row.type === "meta") { grid.createDiv({ cls: "oawm-diff-meta-row", text: row.text || " " }); continue; }
+      this.renderCell(grid, row.left);
+      this.renderCell(grid, row.right);
+    }
+  }
+
+  private renderCell(grid: HTMLElement, cell: SideCell | null) {
+    if (!cell) {
+      grid.createDiv({ cls: "oawm-diff-num" });
+      grid.createDiv({ cls: "oawm-diff-cell oawm-diff-empty" });
+      return;
+    }
+    grid.createDiv({ cls: "oawm-diff-num", text: String(cell.lineNo) });
+    grid.createDiv({ cls: `oawm-diff-cell oawm-diff-${cell.kind}`, text: cell.text || " " });
   }
 }
 

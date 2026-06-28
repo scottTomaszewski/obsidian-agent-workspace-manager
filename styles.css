@@ -32,3 +32,15 @@
 .oawm-badge-D { color: var(--color-red); } .oawm-badge-R { color: var(--color-blue); }
 .oawm-badge-\? { opacity: 0.6; }
 .oawm-pen { opacity: 0.6; }
+/* Side-by-side diff: [old# | old text | new# | new text]. max-content columns let
+   the grid exceed the viewport so the container scrolls horizontally when not wrapping;
+   minmax(0,1fr) columns let cells soft-wrap when Wrap is on. */
+.oawm-diff-sxs { display: grid; grid-template-columns: auto max-content auto max-content;
+  column-gap: 8px; font-family: var(--font-monospace); font-size: 12px; overflow-x: auto; }
+.oawm-diff-sxs.oawm-diff-wrap { grid-template-columns: auto minmax(0,1fr) auto minmax(0,1fr); overflow-x: hidden; }
+.oawm-diff-num { text-align: right; color: var(--text-muted); user-select: none; padding: 0 4px; }
+.oawm-diff-cell { white-space: pre; }
+.oawm-diff-sxs.oawm-diff-wrap .oawm-diff-cell { white-space: pre-wrap; word-break: break-word; }
+.oawm-diff-cell.oawm-diff-add { background: rgba(0, 200, 83, 0.10); color: var(--color-green); }
+.oawm-diff-cell.oawm-diff-del { background: rgba(255, 0, 0, 0.10); color: var(--color-red); }
+.oawm-diff-meta-row { grid-column: 1 / -1; color: var(--text-muted); white-space: pre; margin-top: 4px; }

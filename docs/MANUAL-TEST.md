@@ -51,3 +51,5 @@ Requires at least one task with a worktree and branch.
    - [ ] "Merge" fast-forwards the base branch and navigates back to the Overview on completion.
    - [ ] "Merge & Push" does the same and also pushes the base branch.
    - [ ] "Open PR/MR" pushes the task branch and (on GitHub) opens the compare URL in the browser.
+
+**Known limitation:** Merge and Merge & Push currently integrate only the task's primary repo (the first entry in `repositories`), even when the Unmerged tab lists committed files from multiple repos. Secondary repos must be merged manually.

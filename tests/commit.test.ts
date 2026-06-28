@@ -14,7 +14,6 @@ const ws: WorkspaceNote = {
 function setup() {
   const vault = new FakeVault();
   vault.workspaces.set("W", ws);
-  vault.seedTask({ path: "T.md", id: "DS-1", title: "Add OAuth", workspace: "W", repositories: ["web", "api"], status: "Running", agentState: "Running" });
   const git = new FakeGit();
   const notifier = new FakeNotifier();
   const coord = new CommitCoordinator({ vault, git, notifier });

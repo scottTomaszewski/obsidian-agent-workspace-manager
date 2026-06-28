@@ -22,7 +22,7 @@ export interface ChangesViewDeps {
 export class ChangesView extends ItemView {
   private activeTaskPath: string | null = null;
   private tab: "local" | "unmerged" = "local";
-  private checked = new Set<string>();   // "repo path"
+  private checked = new Set<string>();   // "repo\0path"
   private message = "";
 
   constructor(leaf: WorkspaceLeaf, private deps: ChangesViewDeps) { super(leaf); }
@@ -184,6 +184,9 @@ export class ChangesView extends ItemView {
     merge.onclick = async () => { await this.deps.completion.merge(task, { push: false }); await this.showTask(null); };
     mergePush.onclick = async () => { await this.deps.completion.merge(task, { push: true }); await this.showTask(null); };
     pr.onclick = async () => { const { url } = await this.deps.completion.openPr(task); if (url) this.deps.openExternal(url); };
+    if (task.repositories.length > 1) {
+      body.createEl("em", { cls: "oawm-changes-caveat", text: `Merge integrates the primary repo (${task.repositories[0]}) only.` });
+    }
   }
 
   private async openFileDiff(task: TaskNote, repo: string, path: string, scope: "local" | "unmerged") {

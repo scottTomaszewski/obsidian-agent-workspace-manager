@@ -16,6 +16,7 @@ export interface ChangesViewDeps {
   commit: CommitCoordinator;
   openDiff: (title: string, diff: string) => Promise<void>;
   openEditor: (task: TaskNote, repo: string, path: string) => Promise<void>;
+  openExternal: (url: string) => void;
 }
 
 export class ChangesView extends ItemView {
@@ -39,7 +40,7 @@ export class ChangesView extends ItemView {
     await this.render();
   }
 
-  private key(repo: string, path: string) { return `${repo} ${path}`; }
+  private key(repo: string, path: string) { return `${repo}\0${path}`; }
 
   private async render() {
     const root = this.contentEl;
@@ -156,7 +157,7 @@ export class ChangesView extends ItemView {
   }
 
   private async doCommit(task: TaskNote, push: boolean) {
-    const paths = [...this.checked].map((k) => { const [repo, path] = k.split(" "); return { repo, path }; });
+    const paths = [...this.checked].map((k) => { const idx = k.indexOf("\0"); return { repo: k.slice(0, idx), path: k.slice(idx + 1) }; });
     await this.deps.commit.commit(task, { paths, message: this.message, push });
     this.checked.clear();
     this.message = "";
@@ -182,7 +183,7 @@ export class ChangesView extends ItemView {
     const pr = btns.createEl("button", { text: "Open PR/MR" });
     merge.onclick = async () => { await this.deps.completion.merge(task, { push: false }); await this.showTask(null); };
     mergePush.onclick = async () => { await this.deps.completion.merge(task, { push: true }); await this.showTask(null); };
-    pr.onclick = () => void this.deps.completion.openPr(task);
+    pr.onclick = async () => { const { url } = await this.deps.completion.openPr(task); if (url) this.deps.openExternal(url); };
   }
 
   private async openFileDiff(task: TaskNote, repo: string, path: string, scope: "local" | "unmerged") {

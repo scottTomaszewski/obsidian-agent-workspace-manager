@@ -20,7 +20,12 @@ export function groupByState(tasks: TaskNote[]): Record<DisplayState, TaskNote[]
 }
 
 export class DashboardView extends ItemView {
-  constructor(leaf: WorkspaceLeaf, private vault: VaultGateway, private openTask: (path: string) => void) {
+  constructor(
+    leaf: WorkspaceLeaf,
+    private vault: VaultGateway,
+    private openTask: (path: string) => void,
+    private onReview: (path: string) => void,
+  ) {
     super(leaf);
   }
   getViewType() { return DASHBOARD_VIEW_TYPE; }
@@ -42,6 +47,10 @@ export class DashboardView extends ItemView {
         const link = row.createEl("a", { text: `${task.id} — ${task.title}`, href: "#" });
         link.onclick = (e) => { e.preventDefault(); this.openTask(task.path); };
         row.createSpan({ cls: "oawm-dash-agent", text: ` @${task.agent}` });
+        if (task.branch && task.worktree) {
+          const review = row.createEl("a", { text: " Review", href: "#", cls: "oawm-dash-review" });
+          review.onclick = (e) => { e.preventDefault(); this.onReview(task.path); };
+        }
       }
     }
   }

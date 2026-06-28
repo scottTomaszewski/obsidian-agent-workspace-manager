@@ -80,13 +80,14 @@ export default class OawmPlugin extends Plugin {
 
     // Dashboard view
     this.registerView(DASHBOARD_VIEW_TYPE, (leaf: WorkspaceLeaf) =>
-      new DashboardView(leaf, this.vault, (path) => this.openTask(path)));
+      new DashboardView(leaf, this.vault, (path) => this.openTask(path), (path) => this.activateChanges(path)));
     this.registerView(DIFF_VIEW_TYPE, (leaf: WorkspaceLeaf) => new DiffView(leaf));
     this.registerView(CHANGES_VIEW_TYPE, (leaf: WorkspaceLeaf) =>
       new ChangesView(leaf, {
         vault: this.vault, git: this.git, completion: this.completion, commit,
         openDiff: (title, diff) => openDiffLeaf(this.app, this.settings.diffTarget, { title, diff }),
         openEditor: (task, repo, path) => this.openEditor(task, repo, path),
+        openExternal: (url) => { const { shell } = require("electron"); shell.openExternal(url); },
       }));
     this.addRibbonIcon("bot", "Agent Workspace", () => this.activateDashboard());
     this.addCommand({ id: "open-dashboard", name: "Open Agent Workspace", callback: () => this.activateDashboard() });

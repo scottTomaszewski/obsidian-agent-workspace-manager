@@ -8,22 +8,30 @@ import { ZellijBackend, DEFAULT_TERMINAL_COMMAND, DEFAULT_ZELLIJ_BIN } from "./b
 import { ClaudeBackend } from "./backends/claude";
 import { Orchestrator } from "./core/orchestrator";
 import { CompletionCoordinator } from "./core/completion";
+import { CommitCoordinator } from "./core/commit";
 import { StatusIngest } from "./core/statusIngest";
 import { registerTaskCodeBlock, ActionId } from "./obsidian/taskCodeBlock";
 import { DashboardView, DASHBOARD_VIEW_TYPE } from "./obsidian/dashboardView";
 import { DiffView, DIFF_VIEW_TYPE, openDiffLeaf } from "./obsidian/diffView";
+import { ChangesView, CHANGES_VIEW_TYPE } from "./obsidian/changesView";
+import { buildEditorCommand } from "./core/editorOpen";
+import { resolveTaskWorktrees } from "./core/worktrees";
 import type { TaskNote } from "./domain/types";
 
 interface OawmSettings {
   terminalCommand: string;
   zellijPath: string;
   diffTarget: "popout" | "split";
+  editorStrategy: "mux" | "external";
+  editorCommand: string;
 }
 
 const DEFAULT_SETTINGS: OawmSettings = {
   terminalCommand: DEFAULT_TERMINAL_COMMAND,
   zellijPath: DEFAULT_ZELLIJ_BIN,
   diffTarget: "popout",
+  editorStrategy: "mux",
+  editorCommand: "nvim +{line} {file}",
 };
 
 export default class OawmPlugin extends Plugin {
@@ -59,6 +67,7 @@ export default class OawmPlugin extends Plugin {
     const notifier = { notice: (m: string) => new Notice(`OAWM: ${m}`), confirm: async (m: string) => confirm(m) };
     const agent = new ClaudeBackend({ mux: this.mux, hookHelperPath, statusDir: this.statusDir });
     this.completion = new CompletionCoordinator({ vault: this.vault, git: this.git, mux: this.mux, notifier });
+    const commit = new CommitCoordinator({ vault: this.vault, git: this.git, notifier });
     this.orchestrator = new Orchestrator({ vault: this.vault, git: this.git, mux: this.mux, agent, notifier, vaultRoot, completion: this.completion });
 
     this.ingest = new StatusIngest({ vault: this.vault, reconcile: (p) => this.orchestrator.reconcileTask(p) });
@@ -73,8 +82,15 @@ export default class OawmPlugin extends Plugin {
     this.registerView(DASHBOARD_VIEW_TYPE, (leaf: WorkspaceLeaf) =>
       new DashboardView(leaf, this.vault, (path) => this.openTask(path)));
     this.registerView(DIFF_VIEW_TYPE, (leaf: WorkspaceLeaf) => new DiffView(leaf));
+    this.registerView(CHANGES_VIEW_TYPE, (leaf: WorkspaceLeaf) =>
+      new ChangesView(leaf, {
+        vault: this.vault, git: this.git, completion: this.completion, commit,
+        openDiff: (title, diff) => openDiffLeaf(this.app, this.settings.diffTarget, { title, diff }),
+        openEditor: (task, repo, path) => this.openEditor(task, repo, path),
+      }));
     this.addRibbonIcon("bot", "Agent Workspace", () => this.activateDashboard());
     this.addCommand({ id: "open-dashboard", name: "Open Agent Workspace", callback: () => this.activateDashboard() });
+    this.addCommand({ id: "open-changes", name: "Open Task Changes panel", callback: () => this.activateChanges(null) });
     this.addCommand({
       id: "reconcile-tasks",
       name: "Reconcile tasks (self-heal state)",
@@ -140,7 +156,7 @@ export default class OawmPlugin extends Plugin {
       case "cancel": await this.vault.patchTask(task.path, { status: "Cancelled" }); break;
       case "restart": await this.vault.patchTask(task.path, { agentState: "", status: "Running" }); break;
       case "openTerminal": if (task.session) await this.mux.focus(task.session); return;
-      case "viewDiff": await this.showDiff(task); return;
+      case "viewDiff": await this.activateChanges(task.path); return;
       case "merge": await this.completion.merge(task, { push: false }); break;
       case "mergePush": await this.completion.merge(task, { push: true }); break;
       case "push": await this.completion.pushBranch(task); break;
@@ -153,12 +169,30 @@ export default class OawmPlugin extends Plugin {
     await this.orchestrator.reconcileTask(task.path);
   }
 
-  private async showDiff(task: TaskNote) {
+  private async activateChanges(taskPath: string | null) {
+    const existing = this.app.workspace.getLeavesOfType(CHANGES_VIEW_TYPE);
+    const leaf = existing[0] ?? this.app.workspace.getRightLeaf(false);
+    if (!leaf) { new Notice("OAWM: could not open changes panel"); return; }
+    await leaf.setViewState({ type: CHANGES_VIEW_TYPE, active: true });
+    this.app.workspace.revealLeaf(leaf);
+    const view = leaf.view;
+    if (view instanceof ChangesView) await view.showTask(taskPath);
+  }
+
+  private async openEditor(task: TaskNote, repo: string, path: string) {
     const ws = await this.vault.getWorkspace(task.workspace);
-    if (!ws || !task.branch) { new Notice("OAWM: no branch to diff"); return; }
-    const repo = ws.repositories.find((r) => r.name === task.repositories[0]) ?? ws.repositories[0];
-    const diff = await this.git.diff(repo.path, ws.baseBranch, task.branch);
-    await openDiffLeaf(this.app, this.settings.diffTarget, { title: `${task.id} diff`, diff });
+    if (!ws) return;
+    const wt = resolveTaskWorktrees(task, ws).find((w) => w.repo === repo);
+    if (!wt) return;
+    if (!this.settings.editorCommand.trim()) { new Notice("OAWM: set an editor command in settings"); return; }
+    const command = buildEditorCommand(this.settings.editorCommand, { file: join(wt.path, path) });
+    if (this.settings.editorStrategy === "mux") {
+      if (!task.session) { new Notice("OAWM: no terminal session for this task"); return; }
+      await this.mux.openPane(task.session, wt.path, command);
+    } else {
+      const { spawn } = require("node:child_process");
+      spawn("bash", ["-lc", command], { cwd: wt.path, detached: true, stdio: "ignore" }).unref();
+    }
   }
 
   private async openTask(path: string) {
@@ -224,5 +258,20 @@ class OawmSettingTab extends PluginSettingTab {
         d.addOption("popout", "Popout window").addOption("split", "Main split")
           .setValue(this.plugin.settings.diffTarget)
           .onChange(async (v) => { this.plugin.settings.diffTarget = v as "popout" | "split"; await this.plugin.saveData(this.plugin.settings); }));
+
+    new Setting(containerEl)
+      .setName("Editor open strategy")
+      .setDesc("How the ✎ affordance opens a file. \"Terminal pane\" opens it in a new pane in the task's zellij session (works over SSH); \"External\" spawns a GUI editor command.")
+      .addDropdown((d) =>
+        d.addOption("mux", "Terminal pane (zellij)").addOption("external", "External command")
+          .setValue(this.plugin.settings.editorStrategy)
+          .onChange(async (v) => { this.plugin.settings.editorStrategy = v as "mux" | "external"; await this.plugin.saveData(this.plugin.settings); }));
+
+    new Setting(containerEl)
+      .setName("Editor command")
+      .setDesc("Command template with {file} and {line} placeholders. Examples: \"nvim +{line} {file}\", \"glow {file}\", \"code -g {file}:{line}\".")
+      .addText((t) =>
+        t.setPlaceholder("nvim +{line} {file}").setValue(this.plugin.settings.editorCommand)
+          .onChange(async (v) => { this.plugin.settings.editorCommand = v; await this.plugin.saveData(this.plugin.settings); }));
   }
 }

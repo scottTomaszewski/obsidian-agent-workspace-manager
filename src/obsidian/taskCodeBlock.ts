@@ -29,7 +29,7 @@ export interface ActionBarDeps {
 }
 
 const LABELS: Record<ActionId, string> = {
-  start: "Start", openTerminal: "Open Terminal", viewDiff: "View Diff",
+  start: "Start", openTerminal: "Open Terminal", viewDiff: "Review Changes",
   merge: "Merge", mergePush: "Merge & Push", push: "Push", openPr: "Open PR/MR",
   cancel: "Cancel", restart: "Restart",
 };

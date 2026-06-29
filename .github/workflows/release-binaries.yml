@@ -88,5 +88,8 @@ jobs:
         shell: bash
         run: |
           cd dist
+          # -R is required: this job has no checkout, so gh can't infer the repo
+          # from a local git remote (otherwise: "fatal: not a git repository").
           gh release upload "${{ github.event.release.tag_name }}" \
-            node-pty-*.zip/*.zip checksums.json --clobber
+            node-pty-*.zip/*.zip checksums.json --clobber \
+            -R "${{ github.repository }}"

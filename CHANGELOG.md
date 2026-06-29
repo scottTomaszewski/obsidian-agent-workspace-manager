@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file. The
 "Unreleased" section is promoted to a version heading by `just release`, and its
 body becomes that release's GitHub notes.
 
-## Unreleased
+## 0.0.24
 
 - Added a "Hook command prefix" setting: prepend a command (e.g. `devbox run --`) before `node` when Claude Code invokes the status hook, so tasks still sync on hosts where `node` isn't on PATH for the hook subshell. Blank keeps the current direct `node` call.
 

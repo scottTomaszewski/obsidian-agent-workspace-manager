@@ -10,8 +10,9 @@ jobs:
         include:
           - os: ubuntu-latest
             asset: node-pty-linux-x64.zip
-          - os: macos-13
-            asset: node-pty-darwin-x64.zip
+          # darwin-x64 (Intel Mac) temporarily dropped — macos-13 runners queue
+          # for a long time and Intel Macs aren't a priority yet. Re-add the
+          # `macos-13 / node-pty-darwin-x64.zip` entry to restore it. See FOLLOWUPS.
           - os: macos-14
             asset: node-pty-darwin-arm64.zip
           - os: windows-latest

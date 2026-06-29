@@ -1,6 +1,6 @@
 # Follow-ups
 
-<!-- next-id: 8 -->
+<!-- next-id: 9 -->
 
 In-scope tangents found while working — important to fix, but they'd derail the task
 at hand. Add a numbered `## N.` section below (take N from `next-id` above, then
@@ -115,3 +115,19 @@ calls `leaf.setViewState(...)` (which triggers `onOpen()` → `render()` with th
 state) and then immediately `view.setDiff(state)` (a second `render()` with the new
 state). The result is correct (the second render wins) but the first render is wasted
 work. Harmless; tidy up if touching this file.
+
+## 8. Re-add darwin-x64 (Intel Mac) release binary
+
+**Status:** open
+
+`.github/workflows/release-binaries.yml` temporarily drops the `macos-13 /
+node-pty-darwin-x64.zip` matrix entry because GitHub's Intel-mac runners queue for a
+long time and Intel Macs aren't a current priority. Consequence: on an Intel Mac the
+runtime requests `node-pty-darwin-x64.zip`, which won't exist on the release, so the
+embedded-terminal install fails gracefully to the prompt + External-window fallback.
+
+To restore: re-add the matrix entry:
+```yaml
+          - os: macos-13
+            asset: node-pty-darwin-x64.zip
+```

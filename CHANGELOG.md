@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file. The
 "Unreleased" section is promoted to a version heading by `just release`, and its
 body becomes that release's GitHub notes.
 
-## Unreleased
+## 0.0.23
 
 - Embedded terminal now downloads its native component (node-pty) on demand, so it works with community-store and BRAT installs; switched to ABI-stable mainline node-pty (no more per-Electron-bump revalidation).
 

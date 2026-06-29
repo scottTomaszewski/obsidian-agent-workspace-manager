@@ -71,7 +71,8 @@ DOM is *not* unit-tested (node has no `document`) — it's thin and checked via
 - `domain/reconcile.ts` — `decide(...)`: the desired×actual×alive → action table.
 
 **core (logic + ports):**
-- `core/ports.ts` — the five backend interfaces (the seams).
+- `core/ports.ts` — the six backend interfaces (the seams): `VaultGateway`, `GitBackend`, `MuxBackend`, `AgentBackend`, `Notifier`, `PtyProvisioner`.
+- `core/terminalBinary.ts` — pure provisioning helpers: `assetNameFor`, `downloadUrls`, `verifyChecksum`, `isInstalled`, `BinaryListing`.
 - `core/orchestrator.ts` — reconcile loop, launch, liveness, per-task lock.
 - `core/statusIngest.ts` — marker parse + agentState patch + clobber guard.
 - `core/completion.ts` — `CompletionCoordinator`: merge / fast-forward base / push / open PR (single-repo; see ROADMAP #1).
@@ -86,7 +87,8 @@ DOM is *not* unit-tested (node has no `document`) — it's thin and checked via
 - `backends/exec.ts` — `run(...)` child-process wrapper (stdout/stderr/code).
 - `backends/git.ts` — `RealGitBackend`: all git via `run` over raw `git` (no gh/glab).
 - `backends/zellij.ts` — `ZellijBackend`: sessions + panes via the zellij CLI; accepts an injected `TerminalLauncher` seam that routes `create`/`focus` to either external zellij or the embedded terminal.
-- `backends/pty.ts` — `PtyBackend`/`NodePtyHost`: node-pty host adapter; spawns a pty process and streams data to `TerminalView`.
+- `backends/pty.ts` — `PtyBackend`/`NodePtyHost`: node-pty loaded by absolute path from `<pluginDir>/node_modules/node-pty`; spawns a pty process and streams data to `TerminalView`.
+- `backends/ptyBinary.ts` — `NodePtyProvisioner`: download node-pty zip from GitHub Release, SHA-256-verify against `checksums.json`, extract to `<pluginDir>/node_modules/node-pty`; implements `PtyProvisioner`.
 - `backends/claude.ts` — `ClaudeBackend`: builds the claude launch command (hook env, status dir) and starts the session.
 - `backends/terminal.ts` — terminal-command prefix handling.
 
@@ -100,10 +102,10 @@ DOM is *not* unit-tested (node has no `document`) — it's thin and checked via
 - `obsidian/diffPanel.ts` — diff parsing: `classifyDiffLine`, `splitDiffLines` (unified),
   and `buildSideBySide` (two-column model). (+ legacy unused `DiffModal`.)
 - `obsidian/taskCodeBlock.ts` — per-task action bar (`oawm-task` code block), action ids + labels.
-- `obsidian/terminalView.ts` — xterm.js `ItemView`; one leaf per session, keyed by session id.
+- `obsidian/terminalView.ts` — xterm.js `ItemView`; one leaf per session, keyed by session id. Install flow: `TerminalView.status() → not-installed → in-pane prompt → install (fetch+verify+extract) → spawn`.
 - `obsidian/embeddedTerminal.ts` — `EmbeddedTerminalLauncher`: `TerminalLauncher` implementation that opens/focuses `TerminalView` leaves.
 
 **top level:**
-- `main.ts` — composition root: settings (`terminalHost` selects external zellij vs embedded xterm.js), wires ports→coordinators→views, hook helper write, status watcher + sweep, command/ribbon registration, action routing.
+- `main.ts` — composition root: settings (`terminalHost` selects external zellij vs embedded xterm.js), wires ports→coordinators→views including `NodePtyProvisioner`, hook helper write, status watcher + sweep, command/ribbon registration, action routing.
 - `hookScript.ts` — embedded `oawm-hook.mjs` source (written to disk on load).
 - `version.ts` — `VERSION` constant (kept in lockstep by `just release`).

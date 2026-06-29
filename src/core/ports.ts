@@ -68,3 +68,12 @@ export interface PtyBackend {
     opts: { cwd?: string; env?: Record<string, string>; cols?: number; rows?: number },
   ): PtyHandle;
 }
+
+export type PtyProvisionState = "ready" | "not-installed" | "downloading" | "error";
+
+export interface PtyProvisioner {
+  status(): Promise<{ state: PtyProvisionState; message?: string }>;
+  install(onProgress?: (msg: string) => void): Promise<{ ok: boolean; message: string }>;
+  remove(): Promise<void>;
+  binaryDir(): string; // absolute path to <pluginDir>/node_modules/node-pty
+}

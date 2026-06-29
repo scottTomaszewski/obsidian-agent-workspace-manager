@@ -61,11 +61,38 @@ Requires at least one task with a worktree and branch.
 **Known limitation:** Merge and Merge & Push currently integrate only the task's primary repo (the first entry in `repositories`), even when the Unmerged tab lists committed files from multiple repos. Secondary repos must be merged manually.
 
 ## Embedded terminal
+
+> **Note:** These checks apply to macOS and Linux only. Windows embedded-terminal support
+> is deferred (see FOLLOWUPS #4); on Windows use the External-window host.
+
 - With Terminal host = Embedded, starting a task opens a terminal leaf running the agent.
 - Typing works; resizing the pane reflows the terminal.
 - Exiting the shell prints "[oawm] session ended …" and keeps the pane open.
 - Closing the leaf does NOT kill the agent: "Open Terminal" re-attaches to the live zellij session.
 - If the native terminal cannot load, a Notice points to the External-window fallback.
+
+### Terminal support (binary provisioning)
+
+1. **Fresh install — no binary present:**
+   - [ ] Open a task with Terminal host = Embedded before node-pty has been downloaded.
+   - [ ] The terminal leaf shows an in-pane "Download terminal support" prompt (not a Notice).
+
+2. **Install flow:**
+   - [ ] Click the "Download terminal support" button. A progress indicator appears in the pane.
+   - [ ] After download + SHA-256 verification + extraction complete, the terminal starts automatically (no manual reload required).
+
+3. **Settings mirror:**
+   - [ ] Open Settings → the "Terminal support" section offers "Download / re-download" and "Remove" buttons.
+   - [ ] "Download / re-download" triggers a fresh fetch+verify+extract; a Notice confirms completion or reports failure.
+   - [ ] "Remove" deletes the extracted binary; re-opening a terminal shows the "Download terminal support" prompt again.
+
+4. **Offline / bad network:**
+   - [ ] With no network access (or a broken URL), clicking "Download terminal support" shows an error message in the pane.
+   - [ ] The error includes a hint to switch to External-window host.
+   - [ ] Switching Terminal host to "External window" in Settings and starting a task still launches the agent in an external zellij window as expected.
+
+5. **After remove:**
+   - [ ] After clicking "Remove" in Settings, opening a task terminal again shows the "Download terminal support" prompt (same as fresh install).
 
 ## Settings groups
 - Settings show three headings: Agent terminal, Editor, Diff.

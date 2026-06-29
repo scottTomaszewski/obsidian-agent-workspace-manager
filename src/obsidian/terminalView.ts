@@ -1,7 +1,7 @@
 import { ItemView, Notice, WorkspaceLeaf } from "obsidian";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
-import type { PtyBackend, PtyHandle } from "../core/ports";
+import type { PtyBackend, PtyHandle, PtyProvisioner } from "../core/ports";
 
 export const TERMINAL_VIEW_TYPE = "oawm-terminal";
 
@@ -19,7 +19,7 @@ export class TerminalView extends ItemView {
   private pty?: PtyHandle;
   private state?: TerminalViewState;
 
-  constructor(leaf: WorkspaceLeaf, private ptyBackend: PtyBackend) { super(leaf); }
+  constructor(leaf: WorkspaceLeaf, private ptyBackend: PtyBackend, private provisioner: PtyProvisioner) { super(leaf); }
 
   getViewType() { return TERMINAL_VIEW_TYPE; }
   getDisplayText() { return this.state ? `Terminal: ${this.state.title}` : "OAWM Terminal"; }
@@ -30,7 +30,9 @@ export class TerminalView extends ItemView {
 
   async start(state: TerminalViewState) {
     this.state = state;
-    this.render();
+    const { state: s } = await this.provisioner.status();
+    if (s === "ready") this.render();
+    else this.renderInstallPrompt();
   }
 
   private render() {
@@ -57,8 +59,7 @@ export class TerminalView extends ItemView {
     try {
       pty = this.ptyBackend.spawn(argv, { cwd, env, cols: term.cols, rows: term.rows });
     } catch (e) {
-      term.write(`\r\n[oawm] could not start the embedded terminal: ${String(e)}\r\n`);
-      new Notice("OAWM: embedded terminal failed to start. Update OAWM, or switch Terminal host to \"External window\" in settings.");
+      this.renderInstallPrompt(`Could not start the terminal: ${String(e)}`);
       return;
     }
     this.pty = pty;
@@ -69,6 +70,37 @@ export class TerminalView extends ItemView {
       term.write(`\r\n[oawm] session ended (exit ${code}). This pane is kept open so any error above is readable.\r\n`);
     });
     this.registerDomEvent(window, "resize", () => this.onResize());
+  }
+
+  private renderInstallPrompt(message?: string) {
+    this.pty?.kill();
+    this.term?.dispose();
+    this.pty = undefined; this.term = undefined; this.fit = undefined;
+    const el = this.contentEl;
+    el.empty();
+    el.addClass("oawm-terminal-setup");
+    el.createEl("p", { text: "The in-app terminal needs a one-time native component (node-pty)." });
+    if (message) el.createEl("p", { text: message, cls: "oawm-terminal-setup-msg" });
+    const btn = el.createEl("button", { text: "Download terminal support" });
+    const source = el.createEl("p", { cls: "oawm-terminal-setup-src" });
+    source.setText("Downloaded from this plugin's GitHub release and verified by checksum.");
+    const hint = el.createEl("p", { cls: "oawm-terminal-setup-hint" });
+    hint.setText("Or switch Terminal host to \"External window\" in settings.");
+
+    btn.onclick = async () => {
+      btn.disabled = true;
+      const onProgress = (m: string) => btn.setText(m);
+      const r = await this.provisioner.install(onProgress);
+      if (r.ok) {
+        new Notice("OAWM: terminal support installed.");
+        this.render();
+      } else {
+        btn.disabled = false;
+        btn.setText("Retry download");
+        this.renderInstallPrompt(r.message);
+        new Notice(`OAWM: terminal support failed: ${r.message}`);
+      }
+    };
   }
 
   onResize() {

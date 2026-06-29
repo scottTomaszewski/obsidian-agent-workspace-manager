@@ -143,12 +143,25 @@ picker. The pin is stored in plugin settings (`pinnedBaseRefs`) keyed by **repo 
 worktree dir. Base checkouts are deduped across workspaces by repo path.
 
 ## Embedded terminal: native module packaging & ABI
-- The embedded terminal needs a real PTY via `@homebridge/node-pty-prebuilt-multiarch`,
-  a native module. It is `external` in esbuild and `require`d at runtime, so it must sit
-  in the plugin's `node_modules` — hence the release ships a self-contained zip, not just
-  the loose `main.js/manifest/styles`.
-- The prebuilt `.node` must match Obsidian's Electron ABI (`process.versions.modules`).
-  After an Obsidian Electron bump, re-validate (Task 6 steps) and re-release if needed.
+
+- node-pty is `external` in esbuild and loaded by **absolute path** from
+  `<pluginDir>/node_modules/node-pty` — Obsidian's renderer `require` does not resolve
+  plugin-relative paths, so a relative `require("node-pty")` silently fails. The path is
+  constructed from `app.vault.adapter.getBasePath()` + the plugin directory.
+- node-pty is **downloaded at runtime** from this repo's GitHub Release (the URL is pinned
+  to the plugin `VERSION`), then **SHA-256-verified** against `checksums.json` before
+  extraction. Verification is mandatory — install is rejected if the checksum does not
+  match. This means community-store and BRAT installs work out of the box (nothing native
+  ships inside the bundle).
+- We use **mainline `node-pty` (N-API, `node-pty@^1.1.0`)** instead of the old
+  `@homebridge/node-pty-prebuilt-multiarch` fork. N-API prebuilds are **ABI-stable across
+  Electron versions**, so the old per-`process.versions.modules` revalidation step after
+  each Obsidian Electron bump is **gone**.
+- The embedded terminal currently supports **macOS and Linux** only. On **Windows**, the
+  default `windowsConoutConnection.js` spawns a Worker thread which the Electron renderer
+  cannot satisfy. A Worker-thread-free patch is required but **not yet implemented**
+  (deferred — see FOLLOWUPS #4). Until that patch ships, Windows users must use the
+  External-window host; the embedded terminal is unavailable on Windows.
 - xterm's CSS is copied into `styles.css` (no runtime `@import` from node_modules); re-copy
   on xterm upgrades.
 - zellij stays the persistence spine: the TerminalView is only a viewport. Closing the leaf

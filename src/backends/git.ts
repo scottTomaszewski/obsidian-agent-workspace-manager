@@ -148,4 +148,22 @@ export class RealGitBackend implements GitBackend {
     const unmerged = parseInt(rev.stdout.trim(), 10) || 0;
     return { local, unmerged };
   }
+
+  async searchBranches(repoPath: string, query: string, limit: number): Promise<string[]> {
+    const res = await run("git", ["for-each-ref", "--format=%(refname:short)", "refs/heads", "refs/remotes"], { cwd: repoPath });
+    if (res.code !== 0) return [];
+    const q = query.toLowerCase();
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const ref of res.stdout.split("\n")) {
+      const name = ref.trim();
+      if (name.length === 0 || name.endsWith("/HEAD")) continue;
+      if (!name.toLowerCase().includes(q)) continue;
+      if (seen.has(name)) continue;
+      seen.add(name);
+      out.push(name);
+      if (out.length >= limit) break;
+    }
+    return out;
+  }
 }

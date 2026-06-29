@@ -43,6 +43,16 @@ describe("RealGitBackend", () => {
     await expect(git.createWorktree(repo, "oawm/x", "x", "main")).resolves.toBeUndefined();
     expect(existsSync(wt)).toBe(true);
   });
+
+  it("searchBranches returns local + remote refs matching the query, capped", async () => {
+    await git.createWorktree(repo, "feature/login", "f1", "main");
+    await git.createWorktree(repo, "feature/logout", "f2", "main");
+    const hits = await git.searchBranches(repo, "log", 10);
+    expect(hits).toEqual(expect.arrayContaining(["feature/login", "feature/logout"]));
+    expect(hits).not.toContain("main");
+    expect(await git.searchBranches(repo, "nope-no-match", 10)).toEqual([]);
+    expect((await git.searchBranches(repo, "feature", 1)).length).toBe(1);
+  });
 });
 
 describe("findWorktreeForBranch", () => {

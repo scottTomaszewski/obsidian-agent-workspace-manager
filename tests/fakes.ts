@@ -46,6 +46,7 @@ export class FakeGit implements GitBackend {
   pushBranchOk = true;
   pushBaseOk = true;
   remoteUrl = "git@github.com:acme/widget.git";
+  branches: string[] = [];
 
   async createWorktree(_r: string, _b: string, dir: string) { this.worktrees.add(dir); }
   async diff() { return "diff --git a b"; }
@@ -82,6 +83,9 @@ export class FakeGit implements GitBackend {
   async branchDiffFiles() { return this.branchFiles; }
   async fileDiff() { return this.fileDiffText; }
   async unmergedCounts() { return this.counts; }
+  async searchBranches(_r: string, query: string, limit: number) {
+    return this.branches.filter((b) => b.toLowerCase().includes(query.toLowerCase())).slice(0, limit);
+  }
 }
 
 export class FakeMux implements MuxBackend {

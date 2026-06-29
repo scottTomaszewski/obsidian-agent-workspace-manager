@@ -26,6 +26,7 @@ export interface GitBackend {
   branchDiffFiles(worktreePath: string, base: string): Promise<FileChange[]>;
   fileDiff(worktreePath: string, base: string, path: string, scope: "worktree" | "branch"): Promise<string>;
   unmergedCounts(worktreePath: string, base: string): Promise<{ local: number; unmerged: number }>;
+  searchBranches(repoPath: string, query: string, limit: number): Promise<string[]>;
 }
 
 export interface MuxBackend {

@@ -17,10 +17,11 @@ export interface ChangesViewDeps {
   openDiff: (title: string, diff: string) => Promise<void>;
   openEditor: (dir: string, path: string, session: string | null) => Promise<void>;
   openExternal: (url: string) => void;
+  notify: (msg: string) => void;
 }
 
 export class ChangesView extends ItemView {
-  private activeTarget: { repo: string; path: string } | null = null;
+  private activeTarget: { repo: string; path: string; kind: "base" | "worktree"; taskPath?: string } | null = null;
   private tab: "local" | "diff" = "local";
   private checked = new Set<string>();   // file path within the active checkout
   private message = "";
@@ -33,6 +34,7 @@ export class ChangesView extends ItemView {
   getIcon() { return "git-pull-request"; }
 
   async onOpen() { await this.render(); }
+  async onClose() { window.clearTimeout(this.searchTimer); }
 
   /** Deep-link entry point: null → overview; a task path → its primary-repo worktree target. */
   async showTask(path: string | null) {
@@ -41,7 +43,7 @@ export class ChangesView extends ItemView {
     const groups = await this.loadGroups();
     for (const list of groups.values()) {
       for (const t of list) {
-        if (t.kind === "worktree" && t.taskPath === path) { this.activeTarget = { repo: t.repo, path: t.path }; await this.render(); return; }
+        if (t.kind === "worktree" && t.taskPath === path) { this.activeTarget = { repo: t.repo, path: t.path, kind: t.kind, taskPath: t.taskPath }; await this.render(); return; }
       }
     }
     this.activeTarget = null;
@@ -50,7 +52,7 @@ export class ChangesView extends ItemView {
 
   private async showTarget(target: CheckoutTarget) {
     this.resetDetailState();
-    this.activeTarget = { repo: target.repo, path: target.path };
+    this.activeTarget = { repo: target.repo, path: target.path, kind: target.kind, taskPath: target.taskPath };
     await this.render();
   }
 
@@ -66,8 +68,8 @@ export class ChangesView extends ItemView {
       .then(([tasks, workspaces]) => buildTargets(tasks, workspaces));
   }
 
-  private findTarget(groups: Map<string, CheckoutTarget[]>, sel: { repo: string; path: string }): CheckoutTarget | null {
-    for (const t of groups.get(sel.repo) ?? []) if (t.path === sel.path) return t;
+  private findTarget(groups: Map<string, CheckoutTarget[]>, sel: { repo: string; path: string; kind: "base" | "worktree"; taskPath?: string }): CheckoutTarget | null {
+    for (const t of groups.get(sel.repo) ?? []) if (t.path === sel.path && t.kind === sel.kind && t.taskPath === sel.taskPath) return t;
     return null;
   }
 
@@ -235,7 +237,11 @@ export class ChangesView extends ItemView {
       }
     } else {
       const push = btns.createEl("button", { text: "Push" });
-      push.onclick = async () => { await this.deps.git.pushBase(target.path, target.branch); await this.render(); };
+      push.onclick = async () => {
+        const res = await this.deps.git.pushBase(target.path, target.branch);
+        this.deps.notify(res.ok ? `Pushed ${target.branch}` : `Push failed — ${res.message}`);
+        await this.render();
+      };
     }
   }
 

@@ -92,3 +92,6 @@ Requires at least one task with a worktree and branch.
    plugin data under `pinnedBaseRefs`, keyed by repo path).
 6. From a task note's action bar, "View changes / Review" still deep-links into that task's
    primary-repo worktree detail.
+7. In a `repo-direct` workspace (isolation: repo-direct), clicking a task row (○ <id> — <title>)
+   opens that task's worktree detail showing **Merge / Merge & Push / Open PR** actions — not the
+   base checkout (◆) Push action — confirming target identity is disambiguated by kind and taskPath.

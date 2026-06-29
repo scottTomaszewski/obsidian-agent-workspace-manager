@@ -119,10 +119,11 @@ export default class OawmPlugin extends Plugin {
         openDiff: (title, diff) => openDiffLeaf(this.app, this.settings.diffTarget, { title, diff }),
         openEditor: (dir, path, session) => this.openEditor(dir, path, session),
         openExternal: (url) => { const { shell } = require("electron"); shell.openExternal(url); },
+        notify: (msg) => new Notice(msg),
       }));
     this.addRibbonIcon("bot", "Agent Workspace", () => this.activateDashboard());
     this.addCommand({ id: "open-dashboard", name: "Open Agent Workspace", callback: () => this.activateDashboard() });
-    this.addCommand({ id: "open-changes", name: "Open Task Changes panel", callback: () => this.activateChanges(null) });
+    this.addCommand({ id: "open-changes", name: "Open Workspace Changes panel", callback: () => this.activateChanges(null) });
     this.addCommand({
       id: "reconcile-tasks",
       name: "Reconcile tasks (self-heal state)",

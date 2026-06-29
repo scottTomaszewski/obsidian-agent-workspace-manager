@@ -34,6 +34,7 @@ interface OawmSettings {
   diffWrap: boolean;
   editorStrategy: "mux" | "external";
   editorCommand: string;
+  hookCommandPrefix: string;
   pinnedBaseRefs: Record<string, string>;
 }
 
@@ -46,6 +47,7 @@ const DEFAULT_SETTINGS: OawmSettings = {
   diffWrap: false,
   editorStrategy: "mux",
   editorCommand: "nvim +{line} {file}",
+  hookCommandPrefix: "",
   pinnedBaseRefs: {},
 };
 
@@ -130,7 +132,7 @@ export default class OawmPlugin extends Plugin {
       : new SpawnTerminalLauncher(this.settings.terminalCommand || DEFAULT_TERMINAL_COMMAND);
     this.mux = new ZellijBackend(launcher, this.settings.zellijPath);
     const notifier = { notice: (m: string) => new Notice(`OAWM: ${m}`), confirm: async (m: string) => confirm(m) };
-    const agent = new ClaudeBackend({ mux: this.mux, hookHelperPath, statusDir: this.statusDir });
+    const agent = new ClaudeBackend({ mux: this.mux, hookHelperPath, statusDir: this.statusDir, hookCommandPrefix: this.settings.hookCommandPrefix });
     this.completion = new CompletionCoordinator({ vault: this.vault, git: this.git, mux: this.mux, notifier });
     const commit = new CommitCoordinator({ vault: this.vault, git: this.git, notifier });
     this.orchestrator = new Orchestrator({ vault: this.vault, git: this.git, mux: this.mux, agent, notifier, vaultRoot, completion: this.completion });
@@ -340,6 +342,13 @@ class OawmSettingTab extends PluginSettingTab {
       .addText((t) =>
         t.setPlaceholder(DEFAULT_ZELLIJ_BIN).setValue(s.zellijPath)
           .onChange(async (v) => { s.zellijPath = v.trim() || DEFAULT_ZELLIJ_BIN; await save(); }));
+
+    new Setting(containerEl)
+      .setName("Hook command prefix")
+      .setDesc("Prepended before \"node\" when Claude Code invokes the status hook (e.g. \"devbox run --\" so the hook finds node on a host where node isn't on PATH). Leave blank to call node directly. Takes effect on the next launch.")
+      .addText((t) =>
+        t.setPlaceholder("devbox run --").setValue(s.hookCommandPrefix)
+          .onChange(async (v) => { s.hookCommandPrefix = v.trim(); await save(); }));
 
     // --- Editor ---
     new Setting(containerEl).setName("Editor").setHeading();

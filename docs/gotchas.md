@@ -43,6 +43,14 @@ it is present and version-matched with no separate install step, and self-heals 
 file. Claude Code hooks invoke it with `<event> --task <id> --status-dir <dir>`; it writes
 a durable marker `<vault>/.oawm/status/<task>.json`.
 
+The hook is invoked as `node <helper> …`. Claude Code runs hooks via `/bin/sh`, which
+inherits Claude's environment — so if `node` isn't on PATH there, the hook fails with
+`node: not found` and **no marker is written**, leaving the task stuck (it never reaches
+`NeedsReview`). The "Hook command prefix" setting (`buildHookSettings`'s 4th arg, threaded
+from `OawmSettings.hookCommandPrefix`) is prepended before `node` for exactly this case —
+e.g. `devbox run --` yields `devbox run -- node <helper> …` so an env manager supplies
+node. Blank (the default) calls `node` directly.
+
 ## Status pipeline is fsWatch + a 15s sweep (durable markers, not events)
 
 Markers are the source of truth, not the fsWatch events. `fsWatch` gives low-latency

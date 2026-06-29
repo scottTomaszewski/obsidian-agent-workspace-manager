@@ -25,6 +25,29 @@ describe("buildHookSettings", () => {
     expect(s.hooks.Notification).toBeDefined();
     expect(s.hooks.Stop).toBeDefined();
   });
+
+  it("invokes node directly when no prefix is given", () => {
+    const s = buildHookSettings("DS-1", "/plugin/oawm-hook.mjs", "/vault/.oawm/status");
+    const cmd = s.hooks.Stop[0].hooks[0].command;
+    expect(cmd).toBe(`node "/plugin/oawm-hook.mjs" review --task DS-1 --status-dir "/vault/.oawm/status"`);
+  });
+
+  it("prepends a configured prefix before node (e.g. devbox)", () => {
+    const s = buildHookSettings("DS-1", "/plugin/oawm-hook.mjs", "/vault/.oawm/status", "devbox run --");
+    expect(s.hooks.Stop[0].hooks[0].command).toBe(
+      `devbox run -- node "/plugin/oawm-hook.mjs" review --task DS-1 --status-dir "/vault/.oawm/status"`,
+    );
+    expect(s.hooks.Notification[0].hooks[0].command).toBe(
+      `devbox run -- node "/plugin/oawm-hook.mjs" waiting --task DS-1 --status-dir "/vault/.oawm/status"`,
+    );
+  });
+
+  it("ignores a blank/whitespace prefix", () => {
+    const s = buildHookSettings("DS-1", "/plugin/oawm-hook.mjs", "/vault/.oawm/status", "   ");
+    expect(s.hooks.Stop[0].hooks[0].command).toBe(
+      `node "/plugin/oawm-hook.mjs" review --task DS-1 --status-dir "/vault/.oawm/status"`,
+    );
+  });
 });
 
 describe("ClaudeBackend.launch", () => {
@@ -71,6 +94,17 @@ describe("ClaudeBackend.launch", () => {
     expect(call.command).toMatch(/^claude "\$\(cat '.*prompt\.md'\)"$/);
     const file = call.command.match(/cat '([^']+)'/)![1];
     expect(readFileSync(file, "utf8")).toBe("Add a login button");
+  });
+
+  it("threads the configured hook command prefix into the written settings", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "oawm-cc-"));
+    const mux = new FakeMux();
+    const backend = new ClaudeBackend({ mux, hookHelperPath: "/p/oawm-hook.mjs", statusDir: "/v/.oawm/status", hookCommandPrefix: "devbox run --" });
+    const task = { path: "T.md", id: "DS-5", title: "T" } as TaskNote;
+    const agent: AgentNote = { name: "vexa", provider: "claude", account: { configDir: "/cfg" }, command: "claude", env: {} };
+    await backend.launch({ task, cwd, agent, vaultRoot: "/v", prompt: "" });
+    const written = readFileSync(join(cwd, ".claude", "settings.local.json"), "utf8");
+    expect(written).toContain("devbox run -- node");
   });
 
   it("clears a stale status marker for the task before launching", async () => {

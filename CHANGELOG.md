@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The
 "Unreleased" section is promoted to a version heading by `just release`, and its
 body becomes that release's GitHub notes.
 
+## Unreleased
+
+- Added a "Hook command prefix" setting: prepend a command (e.g. `devbox run --`) before `node` when Claude Code invokes the status hook, so tasks still sync on hosts where `node` isn't on PATH for the hook subshell. Blank keeps the current direct `node` call.
+
 ## 0.0.23
 
 - Embedded terminal now downloads its native component (node-pty) on demand, so it works with community-store and BRAT installs; switched to ABI-stable mainline node-pty (no more per-Electron-bump revalidation).

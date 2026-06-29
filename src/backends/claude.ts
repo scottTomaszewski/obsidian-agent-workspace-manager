@@ -29,9 +29,13 @@ export function buildAgentCommand(baseCommand: string, prompt: string): string {
   return `${cmd} "$(cat ${shquote(promptFile)})"`;
 }
 
-export function buildHookSettings(taskId: string, hookHelperPath: string, statusDir: string) {
+export function buildHookSettings(taskId: string, hookHelperPath: string, statusDir: string, hookCommandPrefix = "") {
+  // The helper is invoked through `node`; a prefix (e.g. "devbox run --") lets
+  // hosts that don't have node on PATH supply it via their env manager.
+  const prefix = hookCommandPrefix.trim();
+  const interpreter = prefix ? `${prefix} node` : "node";
   const cmd = (event: string) =>
-    `node ${JSON.stringify(hookHelperPath)} ${event} --task ${taskId} --status-dir ${JSON.stringify(statusDir)}`;
+    `${interpreter} ${JSON.stringify(hookHelperPath)} ${event} --task ${taskId} --status-dir ${JSON.stringify(statusDir)}`;
   return {
     hooks: {
       Notification: [{ hooks: [{ type: "command", command: cmd("waiting") }] }],
@@ -41,7 +45,7 @@ export function buildHookSettings(taskId: string, hookHelperPath: string, status
 }
 
 export class ClaudeBackend implements AgentBackend {
-  constructor(private deps: { mux: MuxBackend; hookHelperPath: string; statusDir: string }) {}
+  constructor(private deps: { mux: MuxBackend; hookHelperPath: string; statusDir: string; hookCommandPrefix?: string }) {}
 
   async launch(args: LaunchArgs): Promise<{ session: string }> {
     const session = `oawm-${args.task.id}`;
@@ -51,7 +55,7 @@ export class ClaudeBackend implements AgentBackend {
     rmSync(join(this.deps.statusDir, `${args.task.id}.json`), { force: true });
     const claudeDir = join(args.cwd, ".claude");
     mkdirSync(claudeDir, { recursive: true });
-    const settings = buildHookSettings(args.task.id, this.deps.hookHelperPath, this.deps.statusDir);
+    const settings = buildHookSettings(args.task.id, this.deps.hookHelperPath, this.deps.statusDir, this.deps.hookCommandPrefix);
     writeFileSync(join(claudeDir, "settings.local.json"), JSON.stringify(settings, null, 2));
     // The agent's extra env first, then CLAUDE_CONFIG_DIR from the dedicated
     // account field (when set) so it wins over any env entry of the same name.

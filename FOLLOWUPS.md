@@ -1,6 +1,6 @@
 # Follow-ups
 
-<!-- next-id: 4 -->
+<!-- next-id: 8 -->
 
 In-scope tangents found while working — important to fix, but they'd derail the task
 at hand. Add a numbered `## N.` section below (take N from `next-id` above, then
@@ -17,6 +17,51 @@ completed — `grep -rn 'was FOLLOWUPS #N' docs/followups-archive/`.**
 **Status:** open
 What needs doing and why. Code blocks, commands, and links are fine here.
 Mark **Status:** done when resolved; pruned (never renumbered) on the next cleanup pass. -->
+
+## 4. Windows ConPTY patch (deferred Task 6)
+
+**Status:** open
+
+The embedded terminal does not work on Windows because `windowsConoutConnection.js` (part
+of the mainline node-pty package) spawns a Worker thread, which is unavailable in the
+Electron renderer. The fix is to vendor a Worker-thread-free replacement, inline it into
+`main.js` via an esbuild `.txt` text-loader, and write it to disk next to the installed
+node-pty on win32 install.
+
+Until this patch is implemented, Windows users must use the External-window host; the
+embedded terminal is unavailable on Windows. Reference:
+`docs/superpowers/plans/2026-06-29-terminal-binary-provisioning.md` Task 6.
+
+## 5. Bake `checksums.json` into `main.js` at build time
+
+**Status:** open
+
+Currently `checksums.json` is fetched from the GitHub Release at install time alongside the
+binary zip. Baking it into `main.js` at build time (i.e. building `main.js` in CI *after*
+the binary artifacts exist and their checksums are known) would eliminate one network round
+trip on install and allow checksum verification without a separate fetch.
+
+Requires restructuring the release CI so `main.js` is built after the binary matrix jobs
+complete and their checksums are collected.
+
+## 6. Skip binary rebuild when pinned node-pty version is unchanged
+
+**Status:** open
+
+The CI matrix currently rebuilds and uploads platform binaries on every release, even when
+the pinned node-pty version has not changed. Add a check: if the node-pty version in the
+release tag matches the most recent binary release, skip the rebuild and re-point the
+download URL to the existing binary release instead of producing new artifacts.
+
+## 7. Prune stale `node_modules/@homebridge` after upgrade
+
+**Status:** open
+
+Users who had an earlier plugin version installed (which used
+`@homebridge/node-pty-prebuilt-multiarch`) will have a leftover `node_modules/@homebridge`
+directory after upgrading. Add a one-time cleanup step in `NodePtyProvisioner.install` (or
+`onload`) that removes `<pluginDir>/node_modules/@homebridge` if it exists, so the stale
+fork does not linger on disk.
 
 ## 1. Agent-process death isn't detected while the session stays alive
 

@@ -22,6 +22,7 @@ export class FakeVault implements VaultGateway {
     if (cur) this.tasks.set(p, { ...cur, ...patch });
   }
   async getWorkspace(n: string) { return this.workspaces.get(n) ?? null; }
+  async listWorkspaces() { return [...this.workspaces.values()]; }
   async getAgent(n: string) { return this.agents.get(n) ?? null; }
 }
 

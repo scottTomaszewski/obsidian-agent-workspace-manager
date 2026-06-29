@@ -106,6 +106,11 @@ export class ObsidianVaultGateway implements VaultGateway {
     return frontmatterToWorkspace(name, this.app.metadataCache.getFileCache(f)?.frontmatter ?? {});
   }
 
+  async listWorkspaces(): Promise<WorkspaceNote[]> {
+    return this.filesOfType("workspace").map((f) =>
+      frontmatterToWorkspace(f.basename, this.app.metadataCache.getFileCache(f)?.frontmatter ?? {}));
+  }
+
   async getAgent(name: string): Promise<AgentNote | null> {
     const f = this.filesOfType("agent").find((x) => x.basename === name);
     if (!f) return null;

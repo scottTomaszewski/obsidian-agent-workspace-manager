@@ -7,6 +7,7 @@ export interface VaultGateway {
   getTaskBody(path: string): Promise<string>;
   patchTask(path: string, patch: Partial<TaskNote>): Promise<void>;
   getWorkspace(name: string): Promise<WorkspaceNote | null>;
+  listWorkspaces(): Promise<WorkspaceNote[]>;
   getAgent(name: string): Promise<AgentNote | null>;
 }
 

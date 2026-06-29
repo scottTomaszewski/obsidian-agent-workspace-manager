@@ -10,6 +10,17 @@ describe("fakes", () => {
     expect(t?.agentState).toBe("Running");
     expect(t?.session).toBe("s1");
   });
+  it("vault lists seeded workspaces", async () => {
+    const v = new FakeVault();
+    const ws = {
+      name: "W", repositories: [{ name: "web", path: "/code/web" }],
+      isolation: "worktree" as const, baseBranch: "main",
+      git: { user: "u", email: "e" }, mux: { backend: "zellij" as const },
+      host: { type: "local" as const }, env: {},
+    };
+    v.workspaces.set("W", ws);
+    expect(await v.listWorkspaces()).toEqual([ws]);
+  });
   it("mux tracks liveness", async () => {
     const m = new FakeMux();
     await m.create("s1", "/tmp", "claude", {});

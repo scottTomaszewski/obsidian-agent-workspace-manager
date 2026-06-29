@@ -1,0 +1,91 @@
+name: Release node-pty binaries
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset: node-pty-linux-x64.zip
+          - os: macos-13
+            asset: node-pty-darwin-x64.zip
+          - os: macos-14
+            asset: node-pty-darwin-arm64.zip
+          - os: windows-latest
+            asset: node-pty-win32-x64.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install node-pty (materialises the platform prebuild)
+        run: npm install node-pty@^1.1.0 --no-save
+      - name: Verify the prebuild exists
+        shell: bash
+        run: |
+          test -f node_modules/node-pty/lib/index.js
+          ls node_modules/node-pty/prebuilds/*/ | grep -E '\.node$'
+      - name: Package the runtime subset (bash)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          cd node_modules/node-pty
+          zip -r "../../${{ matrix.asset }}" package.json lib prebuilds build 2>/dev/null || \
+          zip -r "../../${{ matrix.asset }}" package.json lib prebuilds
+          cd ../..
+          shasum -a 256 "${{ matrix.asset }}" | awk '{print $1}' > "${{ matrix.asset }}.sha256"
+      - name: Package the runtime subset (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $items = @("package.json","lib","prebuilds")
+          if (Test-Path node_modules/node-pty/build) { $items += "build" }
+          Compress-Archive -Path ($items | ForEach-Object { "node_modules/node-pty/$_" }) -DestinationPath "${{ matrix.asset }}" -Force
+          (Get-FileHash "${{ matrix.asset }}" -Algorithm SHA256).Hash.ToLower() | Out-File -NoNewline "${{ matrix.asset }}.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: |
+            ${{ matrix.asset }}
+            ${{ matrix.asset }}.sha256
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      # NOTE: artifact download nesting depends on the upload-artifact version.
+      # On first real release run, inspect the actual dist/ layout and reconcile
+      # the glob patterns in `gh release upload` and the hash-file paths in the
+      # `cat` call below. Each artifact is currently expected to land at
+      # dist/<asset-name>/<asset-name> (and dist/<asset-name>/<asset-name>.sha256).
+      - name: Build checksums.json
+        shell: bash
+        run: |
+          cd dist
+          echo "{" > checksums.json
+          first=true
+          for d in node-pty-*.zip; do
+            asset="$d"
+            hash="$(cat "$d.sha256/$d.sha256" 2>/dev/null || cat "$asset/$asset.sha256")"
+            if [ "$first" = true ]; then first=false; else echo "," >> checksums.json; fi
+            printf '  "%s": "%s"' "$asset" "$hash" >> checksums.json
+          done
+          echo "" >> checksums.json
+          echo "}" >> checksums.json
+          cat checksums.json
+      - name: Upload assets to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          cd dist
+          gh release upload "${{ github.event.release.tag_name }}" \
+            node-pty-*.zip/*.zip checksums.json --clobber

@@ -1,6 +1,6 @@
-import { Plugin, TFile, Notice, WorkspaceLeaf, normalizePath, PluginSettingTab, Setting, App } from "obsidian";
+import { Plugin, TFile, Notice, WorkspaceLeaf, normalizePath, PluginSettingTab, Setting, App, requestUrl } from "obsidian";
 import { join } from "node:path";
-import { mkdirSync, watch as fsWatch, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, watch as fsWatch, readFileSync, writeFileSync, existsSync, rmSync, chmodSync, readdirSync } from "node:fs";
 import { HOOK_SCRIPT } from "./hookScript";
 import { ObsidianVaultGateway } from "./obsidian/vaultGateway";
 import { RealGitBackend } from "./backends/git";
@@ -18,7 +18,11 @@ import { DiffView, DIFF_VIEW_TYPE, openDiffLeaf, DiffPrefsGateway, DiffTarget } 
 import { ChangesView, CHANGES_VIEW_TYPE } from "./obsidian/changesView";
 import { TerminalView, TERMINAL_VIEW_TYPE } from "./obsidian/terminalView";
 import { NodePtyHost, makeDefaultSpawn } from "./backends/pty";
+import { NodePtyProvisioner } from "./backends/ptyBinary";
+import { run } from "./backends/exec";
 import { buildEditorCommand } from "./core/editorOpen";
+import { VERSION } from "./version";
+import { createHash } from "node:crypto";
 import type { TaskNote } from "./domain/types";
 
 interface OawmSettings {
@@ -53,6 +57,7 @@ export default class OawmPlugin extends Plugin {
   private git!: RealGitBackend;
   private mux!: ZellijBackend;
   private pty!: NodePtyHost;
+  provisioner!: NodePtyProvisioner;
   private statusDir!: string;
   private ingest!: StatusIngest;
   private sweepTimer?: number;
@@ -75,8 +80,49 @@ export default class OawmPlugin extends Plugin {
 
     this.vault = new ObsidianVaultGateway(this.app);
     this.git = new RealGitBackend();
-    this.pty = new NodePtyHost(makeDefaultSpawn(join(vaultRoot, this.manifest.dir ?? "")));
-    this.registerView(TERMINAL_VIEW_TYPE, (leaf: WorkspaceLeaf) => new TerminalView(leaf, this.pty));
+    const pluginDir = join(vaultRoot, this.manifest.dir ?? "");
+    this.provisioner = new NodePtyProvisioner({
+      pluginDir,
+      repo: "scottTomaszewski/obsidian-agent-workspace-manager",
+      version: VERSION,
+      platform: process.platform,
+      arch: process.arch,
+      patchText: "", // win32 ConPTY patch deferred — see FOLLOWUPS
+      join: (...parts: string[]) => join(...parts),
+      fetch: async (url: string) => {
+        const resp = await requestUrl({ url });
+        return { json: () => resp.json, bytes: () => new Uint8Array(resp.arrayBuffer) };
+      },
+      fs: {
+        exists: (p) => existsSync(p),
+        mkdir: (p) => mkdirSync(p, { recursive: true }),
+        writeFile: (p, data) => writeFileSync(p, data as NodeJS.ArrayBufferView | string),
+        rm: (p) => rmSync(p, { recursive: true, force: true }),
+        chmod: (p, mode) => chmodSync(p, mode),
+        listing: (dir, platform, arch) => {
+          const prebuildDir = join(dir, "prebuilds", `${platform}-${arch}`);
+          const buildRelease = join(dir, "build", "Release");
+          const hasNode = (d: string) => { try { return readdirSync(d).some((f) => f.endsWith(".node")); } catch { return false; } };
+          return {
+            hasEntryJs: existsSync(join(dir, "lib", "index.js")),
+            hasPrebuild: hasNode(prebuildDir) || hasNode(buildRelease),
+            hasSpawnHelper: existsSync(join(prebuildDir, "spawn-helper")),
+            hasWinPatch: existsSync(join(dir, "lib", "windowsConoutConnection.js")),
+          };
+        },
+      },
+      extract: async (zipPath, destDir) => {
+        if (process.platform === "win32") {
+          await run("powershell", ["-NoProfile", "-Command",
+            `Expand-Archive -Path '${zipPath.replace(/'/g, "''")}' -DestinationPath '${destDir.replace(/'/g, "''")}' -Force`]);
+        } else {
+          await run("unzip", ["-o", zipPath, "-d", destDir]);
+        }
+      },
+      sha256: (bytes) => createHash("sha256").update(bytes).digest("hex"),
+    });
+    this.pty = new NodePtyHost(makeDefaultSpawn(pluginDir));
+    this.registerView(TERMINAL_VIEW_TYPE, (leaf: WorkspaceLeaf) => new TerminalView(leaf, this.pty, this.provisioner));
     const launcher = this.settings.terminalHost === "embedded"
       ? new EmbeddedTerminalLauncher(this.app)
       : new SpawnTerminalLauncher(this.settings.terminalCommand || DEFAULT_TERMINAL_COMMAND);
@@ -268,6 +314,23 @@ class OawmSettingTab extends PluginSettingTab {
           t.setPlaceholder(DEFAULT_TERMINAL_COMMAND).setValue(s.terminalCommand)
             .onChange(async (v) => { s.terminalCommand = v.trim() || DEFAULT_TERMINAL_COMMAND; await save(); }));
     }
+
+    new Setting(containerEl)
+      .setName("Terminal support (native component)")
+      .setDesc("Downloads node-pty for the embedded terminal from this plugin's GitHub release, verified by checksum. Required only for the embedded host.")
+      .addButton((b) =>
+        b.setButtonText("Download / re-download").onClick(async () => {
+          b.setDisabled(true);
+          const r = await this.plugin.provisioner.install((m) => b.setButtonText(m));
+          new Notice(r.ok ? "OAWM: terminal support installed." : `OAWM: ${r.message}`);
+          b.setDisabled(false);
+          b.setButtonText("Download / re-download");
+        }))
+      .addExtraButton((b) =>
+        b.setIcon("trash").setTooltip("Remove downloaded binary").onClick(async () => {
+          await this.plugin.provisioner.remove();
+          new Notice("OAWM: terminal support removed.");
+        }));
 
     new Setting(containerEl)
       .setName("Multiplexer path")

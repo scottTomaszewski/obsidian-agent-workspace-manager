@@ -74,7 +74,7 @@ export class NodePtyProvisioner implements PtyProvisioner {
       this.d.fs.mkdir(dir);
       await this.d.extract(tmpZip, dir);
 
-      if (this.d.platform === "win32") {
+      if (this.d.platform === "win32" && this.d.patchText) {
         this.d.fs.writeFile(this.d.join(dir, "lib", "windowsConoutConnection.js"), this.d.patchText);
       } else {
         const helper = this.d.join(dir, "prebuilds", `${this.d.platform}-${this.d.arch}`, "spawn-helper");
@@ -93,7 +93,9 @@ export class NodePtyProvisioner implements PtyProvisioner {
 
   async remove(): Promise<void> {
     const dir = this.binaryDir();
-    if (this.d.fs.exists(dir)) this.d.fs.rm(dir);
+    if (this.d.fs.exists(dir)) {
+      try { this.d.fs.rm(dir); } catch { /* best-effort */ }
+    }
     this.state = "not-installed";
     this.message = "";
   }

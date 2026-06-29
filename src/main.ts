@@ -113,10 +113,12 @@ export default class OawmPlugin extends Plugin {
       },
       extract: async (zipPath, destDir) => {
         if (process.platform === "win32") {
-          await run("powershell", ["-NoProfile", "-Command",
+          const r = await run("powershell", ["-NoProfile", "-Command",
             `Expand-Archive -Path '${zipPath.replace(/'/g, "''")}' -DestinationPath '${destDir.replace(/'/g, "''")}' -Force`]);
+          if (r.code !== 0) throw new Error(`Extraction failed (code ${r.code})${r.stderr ? `: ${r.stderr}` : ""}`);
         } else {
-          await run("unzip", ["-o", zipPath, "-d", destDir]);
+          const r = await run("unzip", ["-o", zipPath, "-d", destDir]);
+          if (r.code !== 0) throw new Error(`Extraction failed (code ${r.code})${r.stderr ? `: ${r.stderr}` : ""}`);
         }
       },
       sha256: (bytes) => createHash("sha256").update(bytes).digest("hex"),

@@ -82,9 +82,9 @@ Requires at least one task with a worktree and branch.
    - [ ] After download + SHA-256 verification + extraction complete, the terminal starts automatically (no manual reload required).
 
 3. **Settings mirror:**
-   - [ ] Open Settings → the "Terminal support" section reflects the current status (not installed / installed + version).
-   - [ ] "Re-download" triggers a fresh fetch+verify+extract; status updates when done.
-   - [ ] "Remove" deletes the extracted binary; status reverts to "not installed".
+   - [ ] Open Settings → the "Terminal support" section offers "Download / re-download" and "Remove" buttons.
+   - [ ] "Download / re-download" triggers a fresh fetch+verify+extract; a Notice confirms completion or reports failure.
+   - [ ] "Remove" deletes the extracted binary; re-opening a terminal shows the "Download terminal support" prompt again.
 
 4. **Offline / bad network:**
    - [ ] With no network access (or a broken URL), clicking "Download terminal support" shows an error message in the pane.

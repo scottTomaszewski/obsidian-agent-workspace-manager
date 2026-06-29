@@ -75,9 +75,10 @@ DOM is *not* unit-tested (node has no `document`) — it's thin and checked via
 - `core/orchestrator.ts` — reconcile loop, launch, liveness, per-task lock.
 - `core/statusIngest.ts` — marker parse + agentState patch + clobber guard.
 - `core/completion.ts` — `CompletionCoordinator`: merge / fast-forward base / push / open PR (single-repo; see ROADMAP #1).
-- `core/commit.ts` — `CommitCoordinator`: multi-repo commit & push of selected paths, shared message.
+- `core/commit.ts` — `CommitCoordinator`: multi-repo task commit & push (`commit`) and single-checkout commit & push (`commitTarget`, routes push by base/worktree).
 - `core/changes.ts` — pure parsers (`parseStatus`/`parseNameStatus`) + `FileChange` + panel helpers (`groupByRepo`/`stampRepo`/`commitEnabled`/`selectAllState`).
 - `core/worktrees.ts` — `resolveTaskWorktrees(task, ws)`: one `{repo, path, branch}` per declared repo.
+- `core/targets.ts` — `buildTargets`/`resolveBaseRef`: a `CheckoutTarget` per repo base checkout + task worktree, grouped by repo; the changes panel's selectable units.
 - `core/editorOpen.ts` — `buildEditorCommand` template substitution (`{file}` quoted, `{line}`).
 - `core/remote.ts` — git remote URL → web compare/PR URL (GitHub/GitLab).
 
@@ -92,7 +93,7 @@ DOM is *not* unit-tested (node has no `document`) — it's thin and checked via
 **obsidian (UI):**
 - `obsidian/vaultGateway.ts` — `ObsidianVaultGateway`: reads/patches task/workspace/agent notes via Obsidian APIs.
 - `obsidian/dashboardView.ts` — workspace dashboard (`groupByState`), row → open note / Review.
-- `obsidian/changesView.ts` — Task Changes panel (overview + Local/Unmerged tabs, commit/diff/edit).
+- `obsidian/changesView.ts` — Changes panel: repo-grouped tree of checkout targets (main + worktrees), per-target Local/diff tabs, commit/diff/edit, changeable searchable base ref.
 - `obsidian/diffView.ts` — `DiffView` ItemView + `openDiffLeaf` (popout/split, single reused leaf).
   Scalable toolbar with unified/side-by-side layout + line-wrap toggles, persisted via a
   `DiffPrefsGateway` wired to the `diffLayout`/`diffWrap` settings in `main.ts`.

@@ -132,6 +132,16 @@ horizontal scrollbars stay pinned to the viewport.
   overflow doesn't reliably extend the `<pre>`'s scroll width, so no scrollbar. (Scoped away
   from wrap mode, where `max-content` would defeat wrapping.)
 
+## Changes panel base-ref defaults differ by checkout kind
+
+`buildTargets` (`src/core/targets.ts`) gives a base checkout (`kind: "base"`) a default
+base ref of `origin/<baseBranch>` (so its diff/counts show *unpushed* commits), while a
+task worktree (`kind: "worktree"`) defaults to the local `<baseBranch>` (work ahead of
+base — the original task behavior). Both are overridable via the panel's `vs <baseRef>`
+picker. The pin is stored in plugin settings (`pinnedBaseRefs`) keyed by **repo path**
+(`CheckoutTarget.repoPath`), so it applies to every checkout of that repo — not by
+worktree dir. Base checkouts are deduped across workspaces by repo path.
+
 ## Embedded terminal: native module packaging & ABI
 - The embedded terminal needs a real PTY via `@homebridge/node-pty-prebuilt-multiarch`,
   a native module. It is `external` in esbuild and `require`d at runtime, so it must sit

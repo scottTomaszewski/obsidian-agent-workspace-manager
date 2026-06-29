@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { NodePtyHost, type RawPty } from "../src/backends/pty";
+import { NodePtyHost, makeDefaultSpawn, type RawPty } from "../src/backends/pty";
 
 function makeStubPty() {
   return {
@@ -52,5 +52,25 @@ describe("NodePtyHost", () => {
     host.spawn(["bash"], {});
     expect(stub.opts.cols).toBe(80);
     expect(stub.opts.rows).toBe(24);
+  });
+});
+
+describe("makeDefaultSpawn", () => {
+  it("requires node-pty from the plugin's node_modules by absolute path", () => {
+    const calls: string[] = [];
+    (globalThis as any).window = {
+      require: (id: string) => {
+        calls.push(id);
+        if (id.includes("node_modules")) {
+          return { spawn: () => ({ onData() {}, onExit() {}, write() {}, resize() {}, kill() {} }) };
+        }
+        if (id === "path") return { join: (...p: string[]) => p.join("/") };
+        throw new Error(`unexpected require ${id}`);
+      },
+    };
+    const spawn = makeDefaultSpawn("/vault/.obsidian/plugins/oawm");
+    spawn("bash", [], { name: "xterm-color", cols: 80, rows: 24 } as any);
+    expect(calls).toContain("/vault/.obsidian/plugins/oawm/node_modules/node-pty");
+    delete (globalThis as any).window;
   });
 });

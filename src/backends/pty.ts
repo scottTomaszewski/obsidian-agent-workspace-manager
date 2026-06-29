@@ -15,15 +15,26 @@ export type PtySpawn = (
   opts: { cwd?: string; env?: Record<string, string>; name: string; cols: number; rows: number },
 ) => RawPty;
 
-/** Loads node-pty lazily so a missing/incompatible native binary only fails at spawn time. */
-function defaultSpawn(file: string, args: string[], opts: Parameters<PtySpawn>[2]): RawPty {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const pty = require("@homebridge/node-pty-prebuilt-multiarch");
-  return pty.spawn(file, args, opts);
+/** Builds a spawn fn that loads node-pty from the plugin's own node_modules by
+ *  absolute path (Obsidian's renderer require does not resolve plugin-relative),
+ *  falling back to a bare require. Loaded lazily so a missing binary only fails
+ *  at spawn time — TerminalView turns that into the in-pane install prompt. */
+export function makeDefaultSpawn(pluginDir: string): PtySpawn {
+  return (file, args, opts) => {
+    const req = (window as unknown as { require: (id: string) => unknown }).require;
+    const path = req("path") as { join: (...p: string[]) => string };
+    let pty: { spawn: PtySpawn };
+    try {
+      pty = req(path.join(pluginDir, "node_modules", "node-pty")) as { spawn: PtySpawn };
+    } catch {
+      pty = req("node-pty") as { spawn: PtySpawn };
+    }
+    return pty.spawn(file, args, opts);
+  };
 }
 
 export class NodePtyHost implements PtyBackend {
-  constructor(private ptySpawn: PtySpawn = defaultSpawn) {}
+  constructor(private ptySpawn: PtySpawn) {}
 
   spawn(argv: string[], opts: { cwd?: string; env?: Record<string, string>; cols?: number; rows?: number }): PtyHandle {
     const raw = this.ptySpawn(argv[0], argv.slice(1), {

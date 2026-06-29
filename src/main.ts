@@ -17,7 +17,7 @@ import { DashboardView, DASHBOARD_VIEW_TYPE } from "./obsidian/dashboardView";
 import { DiffView, DIFF_VIEW_TYPE, openDiffLeaf, DiffPrefsGateway, DiffTarget } from "./obsidian/diffView";
 import { ChangesView, CHANGES_VIEW_TYPE } from "./obsidian/changesView";
 import { TerminalView, TERMINAL_VIEW_TYPE } from "./obsidian/terminalView";
-import { NodePtyHost } from "./backends/pty";
+import { NodePtyHost, makeDefaultSpawn } from "./backends/pty";
 import { buildEditorCommand } from "./core/editorOpen";
 import type { TaskNote } from "./domain/types";
 
@@ -75,7 +75,7 @@ export default class OawmPlugin extends Plugin {
 
     this.vault = new ObsidianVaultGateway(this.app);
     this.git = new RealGitBackend();
-    this.pty = new NodePtyHost();
+    this.pty = new NodePtyHost(makeDefaultSpawn(join(vaultRoot, this.manifest.dir ?? "")));
     this.registerView(TERMINAL_VIEW_TYPE, (leaf: WorkspaceLeaf) => new TerminalView(leaf, this.pty));
     const launcher = this.settings.terminalHost === "embedded"
       ? new EmbeddedTerminalLauncher(this.app)

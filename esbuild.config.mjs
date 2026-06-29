@@ -5,7 +5,7 @@ const prod = process.argv.includes("production");
 const ctx = await esbuild.context({
   entryPoints: ["src/main.ts"],
   bundle: true,
-  external: ["obsidian", "electron", "@homebridge/node-pty-prebuilt-multiarch", ...builtins],
+  external: ["obsidian", "electron", "node-pty", ...builtins],
   format: "cjs",
   target: "es2018",
   platform: "node",

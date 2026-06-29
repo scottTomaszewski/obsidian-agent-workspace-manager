@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import { CommitCoordinator, summarizeCommit } from "../src/core/commit";
 import { FakeGit, FakeVault, FakeNotifier } from "./fakes";
 import type { WorkspaceNote } from "../src/domain/types";
+import type { CheckoutTarget } from "../src/core/targets";
 
 const ws: WorkspaceNote = {
   name: "W",
@@ -54,6 +55,40 @@ describe("CommitCoordinator.commit", () => {
       { repo: "web", committed: true, pushed: false, commit: "abc1234" },
       { repo: "api", committed: false, pushed: false, error: "commit failed" },
     ]);
+  });
+});
+
+describe("CommitCoordinator.commitTarget", () => {
+  const worktreeTarget: CheckoutTarget = {
+    repo: "web", repoPath: "/code/web", path: "/code/web/.oawm-worktrees/x",
+    branch: "oawm/x", kind: "worktree", defaultBaseRef: "main", taskId: "DS-1",
+  };
+  const baseTarget: CheckoutTarget = {
+    repo: "web", repoPath: "/code/web", path: "/code/web",
+    branch: "main", kind: "base", defaultBaseRef: "origin/main",
+  };
+
+  it("commits at the worktree path and pushes the branch", async () => {
+    const { git, coord } = setup();
+    await coord.commitTarget(worktreeTarget, { paths: ["a.ts"], message: "m", push: true });
+    expect(git.commitCalls).toEqual([{ worktree: "/code/web/.oawm-worktrees/x", paths: ["a.ts"], message: "m" }]);
+    expect(git.pushedBranches.map((p) => p.branch)).toEqual(["oawm/x"]);
+    expect(git.pushedBases).toEqual([]);
+  });
+
+  it("commits at the base checkout path and pushes via pushBase", async () => {
+    const { git, coord } = setup();
+    await coord.commitTarget(baseTarget, { paths: ["a.ts"], message: "m", push: true });
+    expect(git.commitCalls).toEqual([{ worktree: "/code/web", paths: ["a.ts"], message: "m" }]);
+    expect(git.pushedBases).toEqual(["main"]);
+    expect(git.pushedBranches).toEqual([]);
+  });
+
+  it("does not push when push is false", async () => {
+    const { git, coord } = setup();
+    const res = await coord.commitTarget(baseTarget, { paths: ["a.ts"], message: "m", push: false });
+    expect(git.pushedBases).toEqual([]);
+    expect(res).toEqual([{ repo: "web", committed: true, pushed: false, commit: "abc1234" }]);
   });
 });
 

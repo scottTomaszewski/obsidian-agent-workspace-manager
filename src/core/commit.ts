@@ -1,6 +1,7 @@
 // src/core/commit.ts
 import type { TaskNote } from "../domain/types";
 import type { VaultGateway, GitBackend, Notifier } from "./ports";
+import type { CheckoutTarget } from "./targets";
 import { resolveTaskWorktrees } from "./worktrees";
 
 export interface CommitDeps {
@@ -50,18 +51,34 @@ export class CommitCoordinator {
     for (const wt of resolveTaskWorktrees(task, ws)) {
       const repoPaths = byRepo.get(wt.repo);
       if (!repoPaths || repoPaths.length === 0) continue;
-
-      const c = await this.deps.git.commitPaths(wt.path, repoPaths, input.message);
-      if (!c.ok) { results.push({ repo: wt.repo, committed: false, pushed: false, error: c.message }); continue; }
-
-      if (!input.push) { results.push({ repo: wt.repo, committed: true, pushed: false, commit: c.commit }); continue; }
-
-      const pr = await this.deps.git.pushBranch(wt.path, wt.branch);
-      results.push({ repo: wt.repo, committed: true, pushed: pr.ok, commit: c.commit, error: pr.ok ? undefined : pr.message });
+      results.push(await this.commitInCheckout(
+        wt.path, wt.repo, repoPaths, input.message, input.push,
+        () => this.deps.git.pushBranch(wt.path, wt.branch),
+      ));
     }
 
     if (results.length === 0) this.deps.notifier.notice(`Task ${task.id}: nothing to commit`);
     else this.deps.notifier.notice(summarizeCommit(task.id, results));
     return results;
+  }
+
+  async commitTarget(target: CheckoutTarget, input: { paths: string[]; message: string; push: boolean }): Promise<RepoResult[]> {
+    const pushFn = target.kind === "base"
+      ? () => this.deps.git.pushBase(target.path, target.branch)
+      : () => this.deps.git.pushBranch(target.path, target.branch);
+    const result = await this.commitInCheckout(target.path, target.repo, input.paths, input.message, input.push, pushFn);
+    this.deps.notifier.notice(summarizeCommit(target.taskId ?? target.repo, [result]));
+    return [result];
+  }
+
+  private async commitInCheckout(
+    path: string, repo: string, paths: string[], message: string, push: boolean,
+    pushFn: () => Promise<{ ok: boolean; message: string }>,
+  ): Promise<RepoResult> {
+    const c = await this.deps.git.commitPaths(path, paths, message);
+    if (!c.ok) return { repo, committed: false, pushed: false, error: c.message };
+    if (!push) return { repo, committed: true, pushed: false, commit: c.commit };
+    const pr = await pushFn();
+    return { repo, committed: true, pushed: pr.ok, commit: c.commit, error: pr.ok ? undefined : pr.message };
   }
 }

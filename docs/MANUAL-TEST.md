@@ -72,3 +72,23 @@ Requires at least one task with a worktree and branch.
 - "Terminal command" appears only when Terminal host = External window.
 - "Editor command" appears only when Open strategy = External command.
 - Multiplexer path persists across reload.
+
+## Changes panel — per-repo checkout selector
+
+1. Open the Changes panel with no task selected. Each workspace repo appears as a
+   `▾ <repo>` group with a `◆ <baseBranch>` (main checkout) row plus one `○ <id> — <title>`
+   row per task worktree, each showing `● <local> ↑ <vs-base>` counts. A repo with no
+   tasks still shows its `◆` row.
+2. Click a `◆ main` row → detail view opens with **Local** and **`vs origin/<base>`** tabs.
+   Edit a file in the repo's main checkout → it shows under Local; check it, type a message,
+   **Commit** (then **Commit & Push** → pushes the base branch via `git push origin <base>`).
+3. In a base checkout's **`vs origin/<base>`** tab, the bottom action is **Push** (no
+   Merge / Open PR). In a worktree checkout's diff tab, the actions are **Merge /
+   Merge & Push / Open PR** as before.
+4. Click the `vs <baseRef>` control → type ≥1 char → matching branches appear → pick one.
+   The detail re-renders comparing against the picked ref, and `(use default)` appears.
+   Click `(use default)` → reverts to the default ref.
+5. Pin a base ref, then reload Obsidian (or toggle the panel) → the pin persists (stored in
+   plugin data under `pinnedBaseRefs`, keyed by repo path).
+6. From a task note's action bar, "View changes / Review" still deep-links into that task's
+   primary-repo worktree detail.

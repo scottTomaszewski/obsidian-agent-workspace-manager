@@ -19,7 +19,6 @@ import { ChangesView, CHANGES_VIEW_TYPE } from "./obsidian/changesView";
 import { TerminalView, TERMINAL_VIEW_TYPE } from "./obsidian/terminalView";
 import { NodePtyHost } from "./backends/pty";
 import { buildEditorCommand } from "./core/editorOpen";
-import { resolveTaskWorktrees } from "./core/worktrees";
 import type { TaskNote } from "./domain/types";
 
 interface OawmSettings {
@@ -31,6 +30,7 @@ interface OawmSettings {
   diffWrap: boolean;
   editorStrategy: "mux" | "external";
   editorCommand: string;
+  pinnedBaseRefs: Record<string, string>;
 }
 
 const DEFAULT_SETTINGS: OawmSettings = {
@@ -42,6 +42,7 @@ const DEFAULT_SETTINGS: OawmSettings = {
   diffWrap: false,
   editorStrategy: "mux",
   editorCommand: "nvim +{line} {file}",
+  pinnedBaseRefs: {},
 };
 
 export default class OawmPlugin extends Plugin {
@@ -109,8 +110,14 @@ export default class OawmPlugin extends Plugin {
     this.registerView(CHANGES_VIEW_TYPE, (leaf: WorkspaceLeaf) =>
       new ChangesView(leaf, {
         vault: this.vault, git: this.git, completion: this.completion, commit,
+        pinnedBaseRefs: () => this.settings.pinnedBaseRefs,
+        setBaseRef: async (repoPath, ref) => {
+          if (ref) this.settings.pinnedBaseRefs[repoPath] = ref;
+          else delete this.settings.pinnedBaseRefs[repoPath];
+          await this.saveData(this.settings);
+        },
         openDiff: (title, diff) => openDiffLeaf(this.app, this.settings.diffTarget, { title, diff }),
-        openEditor: (task, repo, path) => this.openEditor(task, repo, path),
+        openEditor: (dir, path, session) => this.openEditor(dir, path, session),
         openExternal: (url) => { const { shell } = require("electron"); shell.openExternal(url); },
       }));
     this.addRibbonIcon("bot", "Agent Workspace", () => this.activateDashboard());
@@ -204,19 +211,15 @@ export default class OawmPlugin extends Plugin {
     if (view instanceof ChangesView) await view.showTask(taskPath);
   }
 
-  private async openEditor(task: TaskNote, repo: string, path: string) {
-    const ws = await this.vault.getWorkspace(task.workspace);
-    if (!ws) return;
-    const wt = resolveTaskWorktrees(task, ws).find((w) => w.repo === repo);
-    if (!wt) return;
+  private async openEditor(dir: string, path: string, session: string | null) {
     if (!this.settings.editorCommand.trim()) { new Notice("OAWM: set an editor command in settings"); return; }
-    const command = buildEditorCommand(this.settings.editorCommand, { file: join(wt.path, path) });
+    const command = buildEditorCommand(this.settings.editorCommand, { file: join(dir, path) });
     if (this.settings.editorStrategy === "mux") {
-      if (!task.session) { new Notice("OAWM: no terminal session for this task"); return; }
-      await this.mux.openPane(task.session, wt.path, command);
+      if (!session) { new Notice("OAWM: no terminal session for this checkout"); return; }
+      await this.mux.openPane(session, dir, command);
     } else {
       const { spawn } = require("node:child_process");
-      spawn("bash", ["-lc", command], { cwd: wt.path, detached: true, stdio: "ignore" }).unref();
+      spawn("bash", ["-lc", command], { cwd: dir, detached: true, stdio: "ignore" }).unref();
     }
   }
 
